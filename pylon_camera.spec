@@ -3,6 +3,8 @@
 binaries = [
     ('external_libs/libMathParser_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
     ('external_libs/libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
+    ('external_libs/libGenApi_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
+    ('external_libs/libXmlParser_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
 ]
 a = Analysis(
     ['pylon_camera.py'],
