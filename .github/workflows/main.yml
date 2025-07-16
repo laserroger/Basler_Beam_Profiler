@@ -54,9 +54,13 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build .app with PyInstaller (macOS)
+      - name: (Manual) Install Pylon SDK - You must customize this step
         run: |
-          pyinstaller --windowed --name pylon_camera pylon_camera.py
+          echo "Please add steps to install Basler Pylon SDK here"
+
+      - name: Build .app with your custom PyInstaller spec
+        run: |
+          pyinstaller pylon_camera.spec
 
       - name: Add editable camera_config.yaml and link to /Applications
         run: |
@@ -78,6 +82,7 @@ jobs:
           name: pylon_camera-macos
           path: dist/pylon_camera.dmg
           retention-days: 30
+
 
   release:
     needs: [build-windows, build-macos]
