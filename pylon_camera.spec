@@ -1,9 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 binaries = [
-    ('/Library/Basler/pylon/Runtime/x86_64/libMathParser_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
-    ('/Library/Basler/pylon/Runtime/x86_64/libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
-    ('/Library/Frameworks/pylon.framework/Versions/A/Libraries/libMathParser_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
+    ('external_libs/libMathParser_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
+    ('external_libs/libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
 ]
 a = Analysis(
     ['pylon_camera.py'],
