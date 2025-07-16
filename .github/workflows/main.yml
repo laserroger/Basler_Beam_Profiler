@@ -68,6 +68,29 @@ jobs:
           cp -R dist/pylon_camera.app dmg_temp/
           cp camera_config.yaml dmg_temp/
           ln -s /Applications dmg_temp/Applications
+          
+
+      - name: Patch @rpath in Basler dylibs inside app bundle
+        run: |
+          dylib_dir="dist/pylon_camera.app/Contents/Frameworks/pypylon"
+
+          for lib in "$dylib_dir"/*.dylib; do
+            echo "Inspecting $lib"
+            otool -L "$lib"
+
+            install_name_tool -change "@rpath/../libMathParser_gcc_v3_1_Basler_pylon_v3.dylib" \
+                              "@rpath/libMathParser_gcc_v3_1_Basler_pylon_v3.dylib" \
+                              "$lib" || true
+
+            install_name_tool -change "@rpath/../libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib" \
+                              "@rpath/libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib" \
+                              "$lib" || true
+
+            install_name_tool -change "@rpath/../libGenApi_gcc_v3_1_Basler_pylon_v3.dylib" \
+                              "@rpath/libGenApi_gcc_v3_1_Basler_pylon_v3.dylib" \
+                              "$lib" || true
+          done
+
 
       - name: Create .dmg with drag-and-drop installer
         run: |
