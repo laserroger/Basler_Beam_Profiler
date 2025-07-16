@@ -4,7 +4,7 @@
 a = Analysis(
     ['pylon_camera.py'],
     pathex=[],
-    binaries=[],
+    binaries=binaries,
     datas=[],
     hiddenimports=[],
     hookspath=[],
@@ -13,7 +13,6 @@ a = Analysis(
     excludes=[],
     noarchive=False,
     optimize=0,
-    binaries=binaries,
 )
 pyz = PYZ(a.pure)
 
