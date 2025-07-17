@@ -86,12 +86,12 @@ jobs:
 
           echo "✅ Patching GenApi -> MathParser..."
           install_name_tool -change @rpath/libMathParser_gcc_v3_1_Basler_pylon_v3.dylib \
-            @loader_path/../libMathParser_gcc_v3_1_Basler_pylon_v3.dylib \
+            @loader_path/libMathParser_gcc_v3_1_Basler_pylon_v3.dylib \
             "$PYLON_LIBS/libGenApi_gcc_v3_1_Basler_pylon_v3.dylib"
 
           echo "✅ Patching XmlParser -> NodeMapData..."
           install_name_tool -change @rpath/libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib \
-            @loader_path/../libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib \
+            @loader_path/libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib \
             "$PYLON_LIBS/libXmlParser_gcc_v3_1_Basler_pylon_v3.dylib"
 
           echo "✅ Done patching Pylon .dylibs"
