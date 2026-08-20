@@ -10,15 +10,16 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-from .gaussian import gaussian_exponent, moments_2d
-
 DETECT_MAX_SIDE = 1024  # longest edge used for blob search
 MIN_DYNAMIC_RANGE = 0.02  # of full scale; below this the frame is considered empty
 
 
 def _make_detector() -> cv2.SimpleBlobDetector:
     p = cv2.SimpleBlobDetector_Params()
-    p.minThreshold, p.maxThreshold = 10, 200
+    # the input is a binary mask, so one threshold pass suffices; the default
+    # multi-threshold sweep costs ~200x more on dense spot arrays
+    p.minThreshold, p.maxThreshold, p.thresholdStep = 127, 129, 2
+    p.minRepeatability = 1
     p.filterByArea, p.minArea, p.maxArea = True, 5, 1e8
     p.filterByCircularity, p.minCircularity = True, 0.4
     p.filterByConvexity, p.minConvexity = True, 0.1
@@ -79,32 +80,52 @@ def fit_spot(
     # offset does not inflate the second moments
     crop = img[y0:y1, x0:x1].astype(np.float32)
     border = np.concatenate([crop[0], crop[-1], crop[:, 0], crop[:, -1]])
-    crop = np.clip(crop - np.median(border), 0, None)
+    crop -= np.median(border)
+    np.clip(crop, 0, None, out=crop)
 
-    # coarse-grain the crop so the moment sums stay O(1) regardless of spot size
+    # coarse-grain large crops so the moment sums stay O(1) regardless of spot size
     N = 40
-    Z = cv2.resize(crop, (N, N), interpolation=cv2.INTER_AREA)
-    X, Y = np.meshgrid(np.linspace(x0, x1, N), np.linspace(y0, y1, N))
+    if max(crop.shape) > 2 * N:
+        Z = cv2.resize(crop, (N, N), interpolation=cv2.INTER_AREA)
+        xs = np.linspace(x0, x1, N)
+        ys = np.linspace(y0, y1, N)
+    else:
+        Z = crop
+        xs = np.arange(x0, x1, dtype=np.float64)
+        ys = np.arange(y0, y1, dtype=np.float64)
+
+    # moments from the marginals (identical maths to a full 2D sum, ~3x faster)
+    col = Z.sum(axis=0).astype(np.float64)
+    row = Z.sum(axis=1).astype(np.float64)
+    total = col.sum()
+    if total <= 0:
+        return None
+    mx, my = col @ xs / total, row @ ys / total
+    dx, dy = xs - mx, ys - my
+    cxx = col @ (dx * dx) / total
+    cyy = row @ (dy * dy) / total
+    cxy = dy @ Z @ dx / total
+    mu = np.array([mx, my])
+    cov = np.array([[cxx, cxy], [cxy, cyy]])
     try:
-        mu, cov = moments_2d(X, Y, Z)
         eigval, eigvec = np.linalg.eigh(cov)  # ascending
-    except (ValueError, np.linalg.LinAlgError):
+    except np.linalg.LinAlgError:
         return None
     sigma_1, sigma_0 = np.sqrt(np.clip(4 * eigval, 0, None))  # minor, major
     vec_1, vec_0 = eigvec[:, 0], eigvec[:, 1]
 
     # peak intensity: raw value at the fitted centre, plus a weighted estimate
     # averaged over the 1-sigma ellipse (robust against single-pixel noise)
-    xi = int(np.abs(X[0, :] - mu[0]).argmin())
-    yi = int(np.abs(Y[:, 0] - mu[1]).argmin())
-    I0_peak = float(Z[yi, xi])
-    inside = gaussian_exponent(X, Y, mu, cov) >= -0.5
-    n_inside = int(inside.sum())
-    I0_weighted = (
-        float(Z[inside].sum() / (n_inside * 2 * (1 - np.exp(-0.5))))
-        if n_inside
-        else I0_peak
-    )
+    I0_peak = float(Z[int(np.abs(dy).argmin()), int(np.abs(dx).argmin())])
+    I0_weighted = I0_peak
+    det = cxx * cyy - cxy * cxy
+    if det > 0:
+        a, b, c = cyy / det, cxy / det, cxx / det  # inverse covariance
+        quad = (a * dx * dx)[None, :] + (c * dy * dy)[:, None] - 2 * b * np.outer(dy, dx)
+        inside = quad <= 1.0
+        n_inside = int(inside.sum())
+        if n_inside:
+            I0_weighted = float(Z[inside].sum() / (n_inside * 2 * (1 - np.exp(-0.5))))
 
     return {
         "x": float(mu[0]),

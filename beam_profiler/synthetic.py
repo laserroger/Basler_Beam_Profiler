@@ -77,11 +77,18 @@ def render(
             continue
         xs = np.arange(x0, x1, dtype=np.float32) - cx
         ys = np.arange(y0, y1, dtype=np.float32) - cy
-        X, Y = np.meshgrid(xs, ys)
-        ct, st = np.cos(s.theta), np.sin(s.theta)
-        u, v = ct * X + st * Y, -st * X + ct * Y
-        patch = np.exp(-0.5 * ((u / s.sigma_x) ** 2 + (v / s.sy) ** 2))
-        img[y0:y1, x0:x1] += (s.amplitude * gain * saturation) * patch
+        amp = s.amplitude * gain * saturation
+        if s.theta == 0.0:  # separable: two small 1D exps instead of a 2D one
+            gx = np.exp(-0.5 * (xs / s.sigma_x) ** 2)
+            gy = np.exp(-0.5 * (ys / s.sy) ** 2)
+            img[y0:y1, x0:x1] += amp * np.outer(gy, gx)
+        else:
+            X, Y = np.meshgrid(xs, ys)
+            ct, st = np.cos(s.theta), np.sin(s.theta)
+            u, v = ct * X + st * Y, -st * X + ct * Y
+            img[y0:y1, x0:x1] += amp * np.exp(
+                -0.5 * ((u / s.sigma_x) ** 2 + (v / s.sy) ** 2)
+            )
     if noise > 0:
         rng = rng or np.random.default_rng()
         img += rng.normal(0.0, noise * saturation, img.shape).astype(np.float32)

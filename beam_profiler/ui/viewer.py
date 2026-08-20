@@ -78,7 +78,9 @@ class Viewer:
         self.show_rect_stats = False
         self._web_thread = None
 
-        cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL)
+        # WINDOW_GUI_NORMAL drops the Qt toolbar and the pixel-hover overlay,
+        # which render as black/garbled boxes (OpenCV's bundled Qt has no fonts)
+        cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL | cv2.WINDOW_GUI_NORMAL)
         cv2.resizeWindow(WINDOW, WINDOW_SIZE, WINDOW_SIZE)
         cv2.setMouseCallback(WINDOW, self.on_mouse)
 

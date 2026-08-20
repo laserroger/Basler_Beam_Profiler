@@ -24,8 +24,11 @@ without hardware:
 
 ```bash
 python -m beam_profiler --sim --sim-grid 8x8 --sim-jitter 0   # static 8x8 grid
-python -m beam_profiler --sim --sim-size 2048x2048            # bigger sensor
+python -m beam_profiler --sim --sim-size 4096x4096 --sim-grid 80x80   # dense array
 ```
+
+The spot sigma defaults to pitch/10 (beam waist = 1/5 of the spot spacing);
+override with `--sim-sigma <px>`.
 
 Fixed spot pictures with ground-truth JSON (for offline testing) are generated
 with:

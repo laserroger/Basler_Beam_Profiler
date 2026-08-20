@@ -29,6 +29,10 @@ def main(argv=None):
         "--sim-jitter", type=float, default=0.3,
         help="per-frame spot position jitter in px (0 = perfectly static)",
     )
+    parser.add_argument(
+        "--sim-sigma", type=float, default=None,
+        help="spot sigma in px (default: pitch/10, i.e. waist = pitch/5)",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -42,7 +46,10 @@ def main(argv=None):
 
     grid = tuple(int(v) for v in args.sim_grid.lower().split("x"))
     width, height = (int(v) for v in args.sim_size.lower().split("x"))
-    sim_opts = dict(grid=grid, width=width, height=height, jitter=args.sim_jitter)
+    sim_opts = dict(
+        grid=grid, width=width, height=height,
+        jitter=args.sim_jitter, sigma=args.sim_sigma,
+    )
     cameras = open_cameras(mode=args.mode, simulate=args.sim, **sim_opts)
 
     from .ui import Viewer

@@ -20,7 +20,7 @@ class SimulatedCamera(Camera):
         width: int = 1200,
         height: int = 1200,
         grid: tuple[int, int] = (4, 4),
-        sigma: float = 10.0,
+        sigma: float | None = None,
         jitter: float = 0.3,
         noise: float = 0.003,
         pixel_size: float = 2.5e-6,
@@ -32,6 +32,10 @@ class SimulatedCamera(Camera):
         self.W, self.H = width, height
         self.pixel_size = pixel_size
         self.default_roi = (width, height, 0, 0)
+        if sigma is None:
+            # beam waist (~2 sigma) defaults to 1/5 of the spot pitch
+            pitch = min(width, height) / (max(grid) + 1)
+            sigma = pitch / 10
         self.spots: list[Spot] = spot_grid(width, height, *grid, sigma=sigma, amplitude=0.6)
         self.jitter = jitter
         self._rng = np.random.default_rng(seed)
