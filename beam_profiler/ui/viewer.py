@@ -21,7 +21,7 @@ from ..config import (
     WEB_SERVER_PORT,
     WINDOW_SIZE,
 )
-from ..processing import classify_grid, detect_spots, region_stats, render_spots
+from ..processing import classify_grid, detect_spots, region_stats
 from ..roi import ROIModel, ViewTransform
 from ..status import write_status
 from . import overlays
@@ -148,22 +148,24 @@ class Viewer:
         return [s for s in spots if x1 <= ox + s["x"] <= x2 and y1 <= oy + s["y"] <= y2]
 
     def _compose(self, frame_disp, spots) -> np.ndarray:
-        """Resize + pad the frame to the window and draw all overlays."""
-        rgb = cv2.cvtColor(frame_disp, cv2.COLOR_GRAY2RGB)
-        if spots and not self.row_col_fitting:
-            rgb = render_spots(rgb, spots, pixel_size=self.camera.pixel_size)
+        """Resize + pad the frame to the window and draw all overlays.
 
+        Everything is drawn in display space after the resize, so text and
+        line widths do not scale with the ROI zoom."""
         view = self.view
-        resized = cv2.resize(rgb, (view.view_w, view.view_h))
-        disp = cv2.copyMakeBorder(
+        resized = cv2.resize(frame_disp, (view.view_w, view.view_h))
+        padded = cv2.copyMakeBorder(
             resized,
             view.pad_t,
             WINDOW_SIZE - view.view_h - view.pad_t,
             view.pad_l,
             WINDOW_SIZE - view.view_w - view.pad_l,
             cv2.BORDER_CONSTANT,
-            value=PAD_COLOR,
+            value=PAD_COLOR[0],
         )
+        disp = cv2.cvtColor(padded, cv2.COLOR_GRAY2RGB)
+        if spots and not self.row_col_fitting:
+            overlays.draw_spots(disp, spots, view, self.camera.pixel_size)
 
         y = overlays.draw_hud(disp, self._hud_lines())
         if self.show_rect_stats:

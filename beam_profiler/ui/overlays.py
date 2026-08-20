@@ -131,6 +131,37 @@ def draw_grid_stats(img, bar_y: int, rows, columns, grid_stats: dict, pixel_to_u
         )
 
 
+def draw_spots(img, spots, view: ViewTransform, pixel_size: float, min_label_radius: int = 15):
+    """Draw fitted ellipses and labels in display space, so line widths and
+    text stay the same size at every zoom level.  Labels are skipped for spots
+    too small on screen to keep dense arrays readable."""
+    BGR_GREEN, BGR_RED, BGR_BLUE = (0, 255, 0), (255, 0, 0), (0, 0, 255)
+    for s in spots:
+        cx, cy = view.roi_to_display(s["x"], s["y"])
+        a0 = s["sigma_0"] * view.scale
+        a1 = s["sigma_1"] * view.scale
+        angle = np.degrees(np.arctan2(s["vec_0"][1], s["vec_0"][0]))
+        cv2.ellipse(
+            img, (cx, cy), (max(1, int(round(a0))), max(1, int(round(a1)))),
+            angle, 0, 360, BGR_GREEN, 2,
+        )
+        if a0 < min_label_radius:
+            continue
+        a = np.radians(angle)
+        p_major = (int(round(cx + a0 * np.cos(a))), int(round(cy + a0 * np.sin(a))))
+        p_minor = (
+            int(round(cx + a1 * np.cos(a + np.pi / 2))),
+            int(round(cy + a1 * np.sin(a + np.pi / 2))),
+        )
+        cv2.line(img, (cx, cy), p_major, BGR_RED, 2)
+        cv2.line(img, (cx, cy), p_minor, BGR_BLUE, 2)
+        um = pixel_size * 1e6
+        ty = cy + int(np.sqrt(a0 * a1)) + 24
+        text(img, f"({s['x']:.0f}, {s['y']:.0f})", (cx, ty), BGR_GREEN, scale=0.5, thickness=1)
+        text(img, f"s0={s['sigma_0'] * um:.1f} um", (cx, ty + 18), BGR_GREEN, scale=0.5, thickness=1)
+        text(img, f"s1={s['sigma_1'] * um:.1f} um", (cx, ty + 36), BGR_GREEN, scale=0.5, thickness=1)
+
+
 def _hue_color(i: int, saturation: int) -> list:
     hsv = np.uint8([[[(i * 30) % 180, saturation, 255]]])
     return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0][0].tolist()
