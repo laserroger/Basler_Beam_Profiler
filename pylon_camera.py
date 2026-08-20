@@ -1,15 +1,38 @@
-import cv2, sys, time, logging, math, os, tkinter as tk
+import cv2, sys, time, logging, os, tkinter as tk
 import numpy as np
 from tkinter import filedialog
+from flask import Flask, jsonify, request, send_file
+from threading import Thread
+import json
+from io import BytesIO
+
+from pylon_camera_utils import ROIModel, classify_dots_grid
+from basler import BaslerCamera
+from blob_detector import blob_detector, render_blobs_with_img
+from pypylon import pylon
 
 # ------------------------------ CONFIG ---------------------------------- #
+
+
+def app_dir():
+    """Directory the app lives in: next to the .exe when frozen by PyInstaller,
+    next to this script otherwise.  Everything the user is meant to see or edit
+    (data/, camera_config.yaml, pylon_camera.json) lives here."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+APP_DIR = app_dir()
 
 MIN_EXPOSURE = 30  # µs
 MAX_EXPOSURE = 100000  # µs
 FPS_LIMIT = 60  # frames / s (UI update)
 WINDOW_SIZE = 1100  # longest display edge in px
 PAD_COLOR = (128, 128, 128)  # gray padding
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+DATA_DIR = os.path.join(APP_DIR, "data")
+WEB_SERVER_PORT = 5000  # Web server port
+STATIC_STATUS_JSON_PATH = os.path.join(APP_DIR, "pylon_camera.json")
 
 # ------------------------------ LOGGING --------------------------------- #
 
@@ -22,14 +45,10 @@ logging.basicConfig(
 
 # ------------------------------ CAMERA ---------------------------------- #
 
-# sys.path.append("../../src")  # project‑local libs
-from basler import BaslerCamera  # noqa: E402
-from blob_detector import blob_detector, render_blobs_with_img  # noqa: E402
-from pypylon import pylon
 
 factory = pylon.TlFactory.GetInstance()
 available = factory.EnumerateDevices()
-cameras = [BaslerCamera(mode="8Bit", device_idx=i) for i, _ in enumerate(available)]
+cameras = [BaslerCamera(mode="16Bit", device_idx=i) for i, _ in enumerate(available)]
 
 if not cameras:
     logging.error("No Basler cameras detected – aborting.")
@@ -37,126 +56,6 @@ if not cameras:
 
 # cache per‑camera state so switching is seamless
 cached_state: dict[str, dict] = {}
-
-# ------------------------------ ROI MODEL ------------------------------- #
-
-
-class ROIModel:
-    """Maintain ROI as (scale, aspect, centre) → tuple understood by Basler."""
-
-    def __init__(self, sensor_w: int, sensor_h: int):
-        self.full_w = sensor_w
-        self.full_h = sensor_h
-        self.scale = 1.0  # fraction of *width*
-        self.aspect = sensor_w / sensor_h  # w / h  (initial native)
-        self.cx = sensor_w / 2  # centre in pixel coords
-        self.cy = sensor_h / 2
-
-    # ------------------------------------------------------------------ #
-    # helpers
-    # ------------------------------------------------------------------ #
-    @property
-    def size(self):
-        w = max(1, int(self.full_w * self.scale))
-        h = max(1, int(w / self.aspect))
-        # shrink if we spill vertically
-        if h > self.full_h:
-            h = self.full_h
-            w = int(h * self.aspect)
-        return w, h
-
-    @property
-    def tuple(self):
-        """Return (w, h, offset_x, offset_y) as expected by Basler."""
-        w, h = self.size
-        ox = int(self.cx - w / 2)
-        oy = int(self.cy - h / 2)
-        # clamp
-        ox = max(0, min(ox, self.full_w - w))
-        oy = max(0, min(oy, self.full_h - h))
-        # recalc centre to honour clamping
-        self.cx = ox + w / 2
-        self.cy = oy + h / 2
-        return w, h, ox, oy
-
-    def display_to_sensor(self, disp_x, disp_y, display_size, pad_l, pad_t):
-        w_roi, h_roi, ox, oy = self.tuple
-        # remove padding
-        x_no_pad = disp_x - pad_l
-        y_no_pad = disp_y - pad_t
-        # get real image size
-        scale = display_size / max(w_roi, h_roi)
-        view_w = int(w_roi * scale)
-        view_h = int(h_roi * scale)
-        # convert to relative coordinates
-        r_x = x_no_pad / view_w if view_w > 0 else 0
-        r_y = y_no_pad / view_h if view_h > 0 else 0
-        # convert to sensor coordinates
-        sensor_x = ox + r_x * w_roi
-        sensor_y = oy + r_y * h_roi
-        return sensor_x, sensor_y
-
-    def sensor_to_display(self, sensor_x, sensor_y, display_size, pad_l, pad_t):
-        w_roi, h_roi, ox, oy = self.tuple
-        #  convert to relative coordinates
-        r_x = (sensor_x - ox) / w_roi if w_roi > 0 else 0
-        r_y = (sensor_y - oy) / h_roi if h_roi > 0 else 0
-        # get real image size
-        scale = display_size / max(w_roi, h_roi)
-        view_w = int(w_roi * scale)
-        view_h = int(h_roi * scale)
-        # convert to display coordinates
-        disp_x = int(r_x * view_w) + pad_l
-        disp_y = int(r_y * view_h) + pad_t
-        return disp_x, disp_y
-
-    def coord_in_roi_to_sensor(self, x, y):
-        """Convert coordinates in the ROI to sensor coordinates."""
-        w_roi, h_roi, ox, oy = self.tuple
-        # convert to relative coordinates
-        r_x = x / w_roi if w_roi > 0 else 0
-        r_y = y / h_roi if h_roi > 0 else 0
-        # convert to sensor coordinates
-        sensor_x = ox + r_x * w_roi
-        sensor_y = oy + r_y * h_roi
-        return sensor_x, sensor_y
-
-    # -------------------------- interactions --------------------------- #
-    def keep_point_fixed(
-        self, sensor_x: float, sensor_y: float, new_scale=None, new_aspect=None
-    ):
-        """Update scale/aspect so that *sensor_x, sensor_y* remain
-        at the *same absolute position* in the sensor afterwards.
-        Additionally, when changing *aspect*, keep the longest edge length
-        unchanged so zoom level feels intuitive (requirement #4)."""
-        # Current ROI geometry
-        w_old, h_old, ox_old, oy_old = self.tuple
-        long_old = max(w_old, h_old)
-        r_x = (sensor_x - ox_old) / w_old if w_old else 0.5
-        r_y = (sensor_y - oy_old) / h_old if h_old else 0.5
-
-        # First apply new aspect so we can compensate scale later
-        if new_aspect is not None:
-            new_aspect = max(0.1, min(new_aspect, 10.0))
-            # Predict size with *current* scale
-            w_tmp = self.full_w * self.scale
-            h_tmp = w_tmp / new_aspect
-            long_tmp = max(w_tmp, h_tmp)
-            if long_tmp > 0:
-                self.scale *= long_old / long_tmp  # keep longest edge constant
-            self.aspect = new_aspect
-
-        # Apply zoom afterwards in case both happen in same event
-        if new_scale is not None:
-            self.scale = max(0.1, min(new_scale, 1.0))
-
-        # Re‑compute ROI and recalc centre while clamping
-        w_new, h_new = self.size
-        ox_new = sensor_x - r_x * w_new
-        oy_new = sensor_y - r_y * h_new
-        self.cx = np.clip(ox_new + w_new / 2, w_new / 2, self.full_w - w_new / 2)
-        self.cy = np.clip(oy_new + h_new / 2, h_new / 2, self.full_h - h_new / 2)
-
 
 # --------------------------- GUI HELPERS ------------------------------- #
 
@@ -174,178 +73,6 @@ def choose_filename():
     )
     root.destroy()
     return fp
-
-
-# --------------------------- STATISTICS ------------------------------- #
-
-
-def classify_dots_grid(spots, eps=None, min_samples=2):
-    """
-    使用基于邻近距离分析的聚类算法对点阵进行行列分类
-
-    参数:
-        spots: 包含点信息的列表，每个点需要有'x'和'y'键
-        eps: 相邻聚类的最大距离，None表示自动确定
-        min_samples: 形成一个有效行/列所需的最小点数
-
-    返回:
-        rows: 按行分类的点列表
-        columns: 按列分类的点列表
-        stats: 包含行列统计信息的字典
-    """
-    if not spots:
-        return [], [], {}
-
-    # 提取坐标
-    xs = np.array([s["x"] for s in spots])
-    ys = np.array([s["y"] for s in spots])
-
-    # ------------------------- 基于距离分析的行列聚类 -------------------------
-
-    # 分析X方向（查找列）
-    sorted_x_indices = np.argsort(xs)
-    sorted_xs = xs[sorted_x_indices]
-
-    # 计算相邻X坐标差值
-    x_gaps = np.diff(sorted_xs)
-
-    # 自动确定聚类阈值
-    if eps is None:
-        # 使用基于分布的自适应阈值
-        if len(x_gaps) > 0:
-            median_x_gap = np.median(x_gaps)
-            # Tukey方法识别异常大间隔
-            q75, q25 = np.percentile(x_gaps, [85, 15])
-            iqr = q75 - q25
-            x_threshold = q75 + (70 / 15) * iqr
-
-            # 使用最小阈值确保鲁棒性
-            x_threshold = max(x_threshold, 2.0 * median_x_gap)
-        else:
-            x_threshold = 1.0  # 默认值
-    else:
-        x_threshold = eps
-
-    # 基于间隔识别列边界
-    x_break_points = np.where(x_gaps > x_threshold)[0]
-
-    # 根据边界分配列
-    columns = []
-    start_idx = 0
-
-    for break_point in x_break_points:
-        end_idx = break_point + 1
-        if end_idx - start_idx >= min_samples:
-            col_indices = sorted_x_indices[start_idx:end_idx]
-            col_points = [spots[i] for i in col_indices]
-            columns.append(col_points)
-        start_idx = end_idx
-
-    # 处理最后一列
-    if len(sorted_xs) - start_idx >= min_samples:
-        col_indices = sorted_x_indices[start_idx:]
-        col_points = [spots[i] for i in col_indices]
-        columns.append(col_points)
-
-    # 分析Y方向（查找行）
-    sorted_y_indices = np.argsort(ys)
-    sorted_ys = ys[sorted_y_indices]
-
-    # 计算相邻Y坐标差值
-    y_gaps = np.diff(sorted_ys)
-
-    # 自动确定聚类阈值
-    if eps is None:
-        # 使用基于分布的自适应阈值
-        if len(y_gaps) > 0:
-            median_y_gap = np.median(y_gaps)
-            # Tukey方法识别异常大间隔````````````````````````````````````````````````````````````````````````````````````1  `222222222222222222222222222222222222222222222222222222```````````````````````````````````````````````````` `111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111      `111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111`                                                                                                                                                                                                                                                                                                                                                                                                                                                 ``
-            q75, q25 = np.percentile(y_gaps, [85, 15])
-            iqr = q75 - q25
-            y_threshold = q75 + (70 / 15) * iqr
-
-            # 使用最小阈值确保鲁棒性
-            y_threshold = max(y_threshold, 2.0 * median_y_gap)
-        else:
-            y_threshold = 1.0  # 默认值
-    else:
-        y_threshold = eps
-
-    # 基于间隔识别行边界
-    y_break_points = np.where(y_gaps > y_threshold)[0]
-
-    # 根据边界分配行
-    rows = []
-    start_idx = 0
-
-    for break_point in y_break_points:
-        end_idx = break_point + 1
-        if end_idx - start_idx >= min_samples:
-            row_indices = sorted_y_indices[start_idx:end_idx]
-            row_points = [spots[i] for i in row_indices]
-            rows.append(row_points)
-        start_idx = end_idx
-
-    # 处理最后一行
-    if len(sorted_ys) - start_idx >= min_samples:
-        row_indices = sorted_y_indices[start_idx:]
-        row_points = [spots[i] for i in row_indices]
-        rows.append(row_points)
-
-    # ----------------------- 对每行和每列内点进行排序 --------------------------
-    # 每行内按x坐标排序
-    for row in rows:
-        row.sort(key=lambda s: s["x"])
-
-    # 每列内按y坐标排序
-    for col in columns:
-        col.sort(key=lambda s: s["y"])
-
-    # -------------------------- 计算统计信息 -----------------------------
-    stats = {
-        "rows": {"mean_dx": [], "std_x": [], "std_y": []},
-        "columns": {"mean_dy": [], "std_y": [], "std_x": []},
-    }
-
-    # 计算每行的统计信息
-    for row in rows:
-        if len(row) >= 2:
-            row_xs = np.array([s["x"] for s in row])
-            row_xs.sort()
-            row_dxs = np.diff(row_xs)
-
-            stats["rows"]["mean_dx"].append(float(row_dxs.mean()))
-            stats["rows"]["std_x"].append(float(row_dxs.std()))
-
-            # calculate the deviation in y for each row
-            row_ys = np.array([s["y"] for s in row])
-            stats["rows"]["std_y"].append(float(row_ys.std()))
-
-    # 计算每列的统计信息
-    for col in columns:
-        if len(col) >= 2:
-            col_ys = np.array([s["y"] for s in col])
-            col_ys.sort()
-            col_dys = np.diff(col_ys)
-
-            stats["columns"]["mean_dy"].append(float(col_dys.mean()))
-            stats["columns"]["std_y"].append(float(col_dys.std()))
-
-            # calculate the deviation in x for each column
-            col_xs = np.array([s["x"] for s in col])
-            stats["columns"]["std_x"].append(float(col_xs.std()))
-    # ----------------------- 计算平均统计信息 -----------------------------
-
-    # 计算所有行和列的平均统计信息
-    for key in ["mean_dx", "std_x", "std_y"]:
-        if stats["rows"][key]:
-            stats["rows"][f"avg_{key}"] = float(np.mean(stats["rows"][key]))
-
-    for key in ["mean_dy", "std_y", "std_x"]:
-        if stats["columns"][key]:
-            stats["columns"][f"avg_{key}"] = float(np.mean(stats["columns"][key]))
-
-    return rows, columns, stats
 
 
 # --------------------------- APPLICATION ------------------------------- #
@@ -368,7 +95,21 @@ class BaslerViewer:
         self.fit_rect_sensor = None  # fitting‑region rectangle (sensor coords)
         self.exposure_us = 200  # default, in us
         self.avg_dt = 1 / FPS_LIMIT
+        self.avg_portion = 0.8
         self._init_window()
+        self.stats_std_dx = 0
+        self.stats_std_dy = 0
+        self.stats_sigma_std = 0
+
+        # Web server related
+        self.current_frame = None
+        self.latest_spots = []
+        self.latest_stats = {}
+        self.web_server_enabled = False  # toggled by 'w'
+        self.show_rect_stats = False  # show real-time rect stats on screen
+        self.web_app = None
+        self.web_server_thread = None
+        self.current_rect_stats = None  # store current rect stats for display
 
     @property
     def auto_exp(self):
@@ -390,6 +131,324 @@ class BaslerViewer:
         cv2.namedWindow("Basler", cv2.WINDOW_NORMAL)
         cv2.resizeWindow("Basler", WINDOW_SIZE, WINDOW_SIZE)
         cv2.setMouseCallback("Basler", self.on_mouse)
+
+    def _create_web_app(self):
+        """创建Flask Web应用"""
+        app = Flask(__name__)
+
+        @app.route("/api/status")
+        def get_status():
+            """获取相机基本状态"""
+            return jsonify(
+                {
+                    "camera_model": self.camera.model_name,
+                    "camera_serial": self.camera.serial,
+                    "exposure_time": self.camera.ExposureTime,
+                    "roi": self.camera.ROI,
+                    "auto_exposure": self.auto_exp,
+                    "fitting_enabled": self.do_fitting,
+                    "rect_sensor": self.rect_sensor,
+                    "fit_rect_sensor": self.fit_rect_sensor,
+                }
+            )
+
+        @app.route("/api/rect_stats")
+        def get_rect_stats():
+            """获取矩形区域统计信息"""
+            if self.current_frame is None:
+                return jsonify({"error": "No frame available"}), 400
+
+            if self.rect_sensor is None:
+                return jsonify({"error": "No rectangle defined"}), 400
+
+            # 获取矩形区域在ROI中的坐标
+            w_roi, h_roi, ox, oy = self.camera.ROI
+            sx1, sy1, sx2, sy2 = self.rect_sensor
+
+            # 转换为ROI内的坐标
+            rx1 = max(0, sx1 - ox)
+            ry1 = max(0, sy1 - oy)
+            rx2 = min(w_roi, sx2 - ox)
+            ry2 = min(h_roi, sy2 - oy)
+
+            if rx1 >= rx2 or ry1 >= ry2:
+                return jsonify({"error": "Rectangle outside of ROI"}), 400
+
+            # 提取矩形区域
+            rect_region = self.current_frame[int(ry1) : int(ry2), int(rx1) : int(rx2)]
+
+            # 计算统计信息
+            stats = {
+                "rectangle_bounds": {
+                    "sensor_coords": [int(sx1), int(sy1), int(sx2), int(sy2)],
+                    "roi_coords": [int(rx1), int(ry1), int(rx2), int(ry2)],
+                    "width_pixels": int(rx2 - rx1),
+                    "height_pixels": int(ry2 - ry1),
+                    "width_um": float((rx2 - rx1) * self.camera.pixel_size * 1e6),
+                    "height_um": float((ry2 - ry1) * self.camera.pixel_size * 1e6),
+                },
+                "pixel_stats": {
+                    "sum": int(np.sum(rect_region)),
+                    "mean": float(np.mean(rect_region)),
+                    "std": float(np.std(rect_region)),
+                    "min": int(np.min(rect_region)),
+                    "max": int(np.max(rect_region)),
+                    "median": float(np.median(rect_region)),
+                    "total_pixels": int(rect_region.size),
+                },
+                "timestamp": time.time(),
+            }
+
+            return jsonify(stats)
+
+        @app.route("/api/fit_rect_stats")
+        def get_fit_rect_stats():
+            """获取拟合矩形区域统计信息"""
+            if self.current_frame is None:
+                return jsonify({"error": "No frame available"}), 400
+
+            if self.fit_rect_sensor is None:
+                return jsonify({"error": "No fitting rectangle defined"}), 400
+
+            # 获取拟合矩形区域在ROI中的坐标
+            w_roi, h_roi, ox, oy = self.camera.ROI
+            sx1, sy1, sx2, sy2 = self.fit_rect_sensor
+
+            # 转换为ROI内的坐标
+            rx1 = max(0, sx1 - ox)
+            ry1 = max(0, sy1 - oy)
+            rx2 = min(w_roi, sx2 - ox)
+            ry2 = min(h_roi, sy2 - oy)
+
+            if rx1 >= rx2 or ry1 >= ry2:
+                return jsonify({"error": "Fitting rectangle outside of ROI"}), 400
+
+            # 提取矩形区域
+            rect_region = self.current_frame[int(ry1) : int(ry2), int(rx1) : int(rx2)]
+
+            # 计算统计信息
+            stats = {
+                "rectangle_bounds": {
+                    "sensor_coords": [int(sx1), int(sy1), int(sx2), int(sy2)],
+                    "roi_coords": [int(rx1), int(ry1), int(rx2), int(ry2)],
+                    "width_pixels": int(rx2 - rx1),
+                    "height_pixels": int(ry2 - ry1),
+                    "width_um": float((rx2 - rx1) * self.camera.pixel_size * 1e6),
+                    "height_um": float((ry2 - ry1) * self.camera.pixel_size * 1e6),
+                },
+                "pixel_stats": {
+                    "sum": int(np.sum(rect_region)),
+                    "mean": float(np.mean(rect_region)),
+                    "std": float(np.std(rect_region)),
+                    "min": int(np.min(rect_region)),
+                    "max": int(np.max(rect_region)),
+                    "median": float(np.median(rect_region)),
+                    "total_pixels": int(rect_region.size),
+                },
+                "timestamp": time.time(),
+            }
+
+            return jsonify(stats)
+
+        @app.route("/api/spots")
+        def get_spots():
+            """获取检测到的光斑信息"""
+            return jsonify(
+                {
+                    "spots": self.latest_spots,
+                    "spot_count": len(self.latest_spots),
+                    "stats": self.latest_stats,
+                    "timestamp": time.time(),
+                }
+            )
+
+        @app.route("/api/image")
+        def get_image():
+            """获取当前图像"""
+            if self.current_frame is None:
+                return jsonify({"error": "No frame available"}), 400
+
+            # 转换为8位图像
+            if self.camera.mode == "16Bit":
+                img_8bit = cv2.convertScaleAbs(self.current_frame, alpha=1 / 256.0)
+            else:
+                img_8bit = self.current_frame
+
+            # 编码为JPEG
+            _, buffer = cv2.imencode(".jpg", img_8bit)
+
+            return send_file(BytesIO(buffer.tobytes()), mimetype="image/jpeg")
+
+        @app.route("/api/image_within_rect")
+        def get_image_within_rect():
+            """获取矩形区域内的当前图像"""
+            if self.current_frame is None:
+                return jsonify({"error": "No frame available"}), 400
+
+            if self.rect_sensor is None:
+                return jsonify({"error": "No rectangle defined"}), 400
+
+            # 获取矩形区域在ROI中的坐标
+            w_roi, h_roi, ox, oy = self.camera.ROI
+            sx1, sy1, sx2, sy2 = self.rect_sensor
+
+            # 转换为ROI内的坐标
+            rx1 = max(0, sx1 - ox)
+            ry1 = max(0, sy1 - oy)
+            rx2 = min(w_roi, sx2 - ox)
+            ry2 = min(h_roi, sy2 - oy)
+
+            if rx1 >= rx2 or ry1 >= ry2:
+                return jsonify({"error": "Rectangle outside of ROI"}), 400
+
+            # 提取矩形区域
+            rect_region = self.current_frame[int(ry1) : int(ry2), int(rx1) : int(rx2)]
+
+            # 转换为8位图像
+            if self.camera.mode == "16Bit":
+                img_8bit = cv2.convertScaleAbs(rect_region, alpha=1 / 256.0)
+            else:
+                img_8bit = rect_region
+
+            # 编码为JPEG
+            _, buffer = cv2.imencode(".jpg", img_8bit)
+
+            return send_file(BytesIO(buffer.tobytes()), mimetype="image/jpeg")
+
+        @app.route("/api/set_rect", methods=["POST"])
+        def set_rect():
+            """设置矩形区域"""
+            data = request.get_json()
+            if not data or "coords" not in data:
+                return jsonify({"error": "Invalid request data"}), 400
+
+            coords = data["coords"]
+            if len(coords) != 4:
+                return jsonify({"error": "Coordinates must be [x1, y1, x2, y2]"}), 400
+
+            self.rect_sensor = tuple(int(c) for c in coords)
+            return jsonify(
+                {"message": "Rectangle set successfully", "coords": self.rect_sensor}
+            )
+
+        @app.route("/api/set_fit_rect", methods=["POST"])
+        def set_fit_rect():
+            """设置拟合矩形区域"""
+            data = request.get_json()
+            if not data or "coords" not in data:
+                return jsonify({"error": "Invalid request data"}), 400
+
+            coords = data["coords"]
+            if len(coords) != 4:
+                return jsonify({"error": "Coordinates must be [x1, y1, x2, y2]"}), 400
+
+            self.fit_rect_sensor = tuple(int(c) for c in coords)
+            return jsonify(
+                {
+                    "message": "Fitting rectangle set successfully",
+                    "coords": self.fit_rect_sensor,
+                }
+            )
+
+        @app.route("/api/clear_rect", methods=["POST"])
+        def clear_rect():
+            """清除矩形区域"""
+            self.rect_sensor = None
+            return jsonify({"message": "Rectangle cleared"})
+
+        @app.route("/api/clear_fit_rect", methods=["POST"])
+        def clear_fit_rect():
+            """清除拟合矩形区域"""
+            self.fit_rect_sensor = None
+            return jsonify({"message": "Fitting rectangle cleared"})
+
+        @app.route("/")
+        def index():
+            """简单的Web界面"""
+            html = """
+            <!DOCTYPE html>
+
+            <html>
+            <head>
+                <title>Basler Camera Server</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    .endpoint { margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px; }
+                    .method { color: #007acc; font-weight: bold; }
+                    pre { background: #f8f8f8; padding: 10px; border-radius: 3px; overflow-x: auto; }
+                </style>
+            </head>
+            <body>
+                <h1>Basler Camera Web Server</h1>
+                <h2>Available Endpoints:</h2>
+
+                <div class="endpoint">
+                    <span class="method">GET</span> <code>/api/status</code>
+                    <p>获取相机基本状态信息</p>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method">GET</span> <code>/api/rect_stats</code>
+                    <p>获取矩形区域像素统计信息（需要先设置矩形）</p>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method">GET</span> <code>/api/fit_rect_stats</code>
+                    <p>获取拟合矩形区域像素统计信息（需要先设置拟合矩形）</p>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method">GET</span> <code>/api/spots</code>
+                    <p>获取检测到的光斑信息</p>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method">GET</span> <code>/api/image</code>
+                    <p>获取当前相机图像（JPEG格式）</p>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method">POST</span> <code>/api/set_rect</code>
+                    <p>设置矩形区域，POST JSON: {"coords": [x1, y1, x2, y2]}</p>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method">POST</span> <code>/api/set_fit_rect</code>
+                    <p>设置拟合矩形区域，POST JSON: {"coords": [x1, y1, x2, y2]}</p>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method">POST</span> <code>/api/clear_rect</code>
+                    <p>清除矩形区域</p>
+                </div>
+
+                <div class="endpoint">
+                    <span class="method">POST</span> <code>/api/clear_fit_rect</code>
+                    <p>清除拟合矩形区域</p>
+                </div>
+
+                <h2>示例用法:</h2>
+                <pre>
+# 获取状态
+curl http://localhost:5000/api/status
+
+# 设置矩形区域（传感器坐标）
+curl -X POST -H "Content-Type: application/json" \\
+     -d '{"coords": [100, 100, 300, 300]}' \\
+     http://localhost:5000/api/set_rect
+
+# 获取矩形区域统计
+curl http://localhost:5000/api/rect_stats
+
+# 获取当前图像
+curl http://localhost:5000/api/image -o current_image.jpg
+                </pre>
+            </body>
+            </html>
+            """
+            return html
+
+        return app
 
     def on_mouse(self, event, x, y, flags, _param):
         # calculate padding
@@ -416,6 +475,8 @@ class BaslerViewer:
         if event == cv2.EVENT_MOUSEWHEEL:
             if ctrl_down:
                 # change aspect ratio while keeping long edge fixed
+                if np.abs(self.roi_model.aspect) < 0.01:
+                    return  # avoid division by zero
                 factor = 0.95 if flags > 0 else 1.05
                 new_aspect = self.roi_model.aspect * factor
                 self.roi_model.keep_point_fixed(
@@ -423,7 +484,10 @@ class BaslerViewer:
                 )
             else:
                 # zoom in/out
-                delta = -0.05 if flags > 0 else 0.05
+                if np.abs(self.roi_model.scale) > 0.1:
+                    delta = -0.05 if flags > 0 else 0.05
+                else:
+                    delta = -0.01 if flags > 0 else 0.01
                 new_scale = self.roi_model.scale + delta
                 self.roi_model.keep_point_fixed(
                     self.last_mouse[0], self.last_mouse[1], new_scale=new_scale
@@ -457,6 +521,7 @@ class BaslerViewer:
                     max(x1, x2), max(y1, y2), WINDOW_SIZE, pad_l, pad_t
                 )
                 self.fit_rect_sensor = (int(s_x1), int(s_y1), int(s_x2), int(s_y2))
+                self.save_status_to_json()
 
             elif self.rect_disp is not None:
                 x1, y1, x2, y2 = self.rect_disp
@@ -470,6 +535,26 @@ class BaslerViewer:
                     max(x1, x2), max(y1, y2), WINDOW_SIZE, pad_l, pad_t
                 )
                 self.rect_sensor = (int(s_x1), int(s_y1), int(s_x2), int(s_y2))
+                self.save_status_to_json()
+
+    def save_status_to_json(self):
+        """将当前状态保存到JSON文件"""
+        status = {
+            "camera_model": self.camera.model_name,
+            "camera_serial": self.camera.serial,
+            "exposure_time": self.camera.ExposureTime,
+            "roi": self.camera.ROI,
+            "auto_exposure": self.auto_exp,
+            "fitting_enabled": self.do_fitting,
+            "rect_sensor": self.rect_sensor,
+            "fit_rect_sensor": self.fit_rect_sensor,
+        }
+        try:
+            with open(STATIC_STATUS_JSON_PATH, "w") as f:
+                json.dump(status, f, indent=4)
+            # print(f"Status saved to {STATIC_STATUS_JSON_PATH}")
+        except Exception as e:
+            print(f"Error saving status to {STATIC_STATUS_JSON_PATH}: {e}")
 
     # ----------------------------- main loop ---------------------------- #
     def run(self):
@@ -482,6 +567,12 @@ class BaslerViewer:
                 frame_disp = cv2.convertScaleAbs(frame, alpha=1 / 256.0)
             else:
                 frame_disp = frame
+            self.frame = frame_disp  # keep for saving raw images
+            self.current_frame = frame  # 保存原始帧供Web服务器使用
+
+            # 计算实时矩形统计（如果启用了显示）
+            if self.show_rect_stats and self.rect_sensor is not None:
+                self._calculate_rect_stats()
 
             # ---------------------------------------------------- Blob detection
             spots = []
@@ -496,6 +587,9 @@ class BaslerViewer:
                             spots.append(s)
                 else:
                     spots = all_spots
+
+            # 更新最新的光斑信息供Web服务器使用
+            self.latest_spots = spots
 
             # create RGB overlay image
             rgb = cv2.cvtColor(frame_disp, cv2.COLOR_GRAY2RGB)
@@ -527,6 +621,14 @@ class BaslerViewer:
             # ------------------------- overlays ---------------------- #
             next_y = self._draw_hud(disp)
             self._calc_spot_statistics(spots)  # update stats
+
+            # 更新最新统计信息供Web服务器使用
+            if self.web_server_enabled:
+                self._update_web_stats()
+
+            # 显示矩形统计信息（实时显示）
+            next_y = self._draw_rect_stats(disp, next_y)
+
             self._draw_stats_bar(disp, next_y)  # if stats enabled draws
             self._draw_rectangles(disp, pad_l, pad_t)
 
@@ -544,6 +646,98 @@ class BaslerViewer:
 
         self.camera.close()
         cv2.destroyAllWindows()
+
+        # 停止Web服务器
+        if self.web_server_thread and self.web_server_thread.is_alive():
+            # Flask服务器会在主线程结束时自动停止
+            pass
+
+    def _start_web_server(self):
+        """在后台线程启动Web服务器"""
+        if self.web_server_enabled:
+            return  # 已经启动了
+
+        # 创建Web应用
+        if self.web_app is None:
+            self.web_app = self._create_web_app()
+
+        def run_server():
+            try:
+                self.web_app.run(
+                    host="0.0.0.0",
+                    port=WEB_SERVER_PORT,
+                    debug=False,
+                    use_reloader=False,
+                )
+            except Exception as e:
+                logging.error(f"Web server error: {e}")
+
+        self.web_server_thread = Thread(target=run_server, daemon=True)
+        self.web_server_thread.start()
+        self.web_server_enabled = True
+
+    def _stop_web_server(self):
+        """停止Web服务器"""
+        if not self.web_server_enabled:
+            return
+
+        self.web_server_enabled = False
+        # Flask服务器会在主线程结束时自动停止
+        # 由于使用了daemon线程，它会在主程序结束时自动终止
+
+    def _update_web_stats(self):
+        """更新最新统计信息供Web服务器使用"""
+        pixel_to_um = self.camera.pixel_size * 1e6
+
+        # 基本统计信息
+        stats = {
+            "basic_stats": {
+                "dx_std": (
+                    float(np.std(self.stats_dx)) if len(self.stats_dx) > 0 else 0.0
+                ),
+                "dy_std": (
+                    float(np.std(self.stats_dy)) if len(self.stats_dy) > 0 else 0.0
+                ),
+                "dx_mean_um": (
+                    float(np.mean(self.stats_dx) * pixel_to_um)
+                    if len(self.stats_dx) > 0
+                    else 0.0
+                ),
+                "dy_mean_um": (
+                    float(np.mean(self.stats_dy) * pixel_to_um)
+                    if len(self.stats_dy) > 0
+                    else 0.0
+                ),
+                "sigma_std": float(self.stats_sigma_std),
+            }
+        }
+
+        # 行列统计信息
+        if hasattr(self, "grid_stats") and self.grid_stats:
+            stats["grid_stats"] = self.grid_stats.copy()
+            # 添加微米单位的统计
+            if "rows" in stats["grid_stats"]:
+                for key in ["avg_mean_dx", "avg_std_x", "avg_std_y"]:
+                    if key in stats["grid_stats"]["rows"]:
+                        stats["grid_stats"]["rows"][f"{key}_um"] = (
+                            stats["grid_stats"]["rows"][key] * pixel_to_um
+                        )
+
+            if "columns" in stats["grid_stats"]:
+                for key in ["avg_mean_dy", "avg_std_y", "avg_std_x"]:
+                    if key in stats["grid_stats"]["columns"]:
+                        stats["grid_stats"]["columns"][f"{key}_um"] = (
+                            stats["grid_stats"]["columns"][key] * pixel_to_um
+                        )
+
+        # 行列数量
+        if hasattr(self, "rows") and hasattr(self, "columns"):
+            stats["row_col_counts"] = {
+                "num_rows": len(self.rows),
+                "num_columns": len(self.columns),
+            }
+
+        self.latest_stats = stats
 
     # ------------------------------------------------------------------ #
     # HUD & overlays
@@ -575,12 +769,18 @@ class BaslerViewer:
             else 0
         )
 
+        web_status = "ON" if self.web_server_enabled else "OFF"
+        rect_stats_status = "ON" if self.show_rect_stats else "OFF"
+
         items = [
             f"Camera: {self.camera.model_name}, FPS: {1/self.avg_dt:4.1f}",
             f"ROI: {self.camera.ROI}  Mouse: {self.last_mouse}",
             f"Exposure: {exposure_txt} us",
-            f"Rect: W = {rect_w_um:.1f} um, H = {rect_h_um:.1f} um",
+            f"Rect: {self.rect_sensor}, W = {rect_w_um:.1f} um, H = {rect_h_um:.1f} um",
             f"Fitting: {self.do_fitting}, Stats: {self.show_stats}, Row-Col: {self.row_col_fitting}",
+            f"Web Server: {web_status}, Rect Stats: {rect_stats_status} (Press 'w' to toggle)",
+            # f"exposure_sync: {self.camera.exposure_line_enabled} (Press 'y' to toggle)",
+            f"exposure_sync: {self.camera.userdefined_line_enabled} (Press 'y' to toggle)",
         ]
         for txt in items:
             y += line_height
@@ -653,6 +853,84 @@ class BaslerViewer:
         self.rows = rows
         self.columns = columns
 
+    def _calculate_rect_stats(self):
+        """计算矩形区域的像素统计信息"""
+        if self.current_frame is None or self.rect_sensor is None:
+            self.current_rect_stats = None
+            return
+
+        # 获取矩形区域在ROI中的坐标
+        w_roi, h_roi, ox, oy = self.camera.ROI
+        sx1, sy1, sx2, sy2 = self.rect_sensor
+
+        # 转换为ROI内的坐标
+        rx1 = max(0, sx1 - ox)
+        ry1 = max(0, sy1 - oy)
+        rx2 = min(w_roi, sx2 - ox)
+        ry2 = min(h_roi, sy2 - oy)
+
+        if rx1 >= rx2 or ry1 >= ry2:
+            self.current_rect_stats = None
+            return
+
+        # 提取矩形区域
+        rect_region = self.current_frame[int(ry1) : int(ry2), int(rx1) : int(rx2)]
+
+        # 计算统计信息
+        self.current_rect_stats = {
+            "sum": int(np.sum(rect_region)),
+            "mean": float(np.mean(rect_region)),
+            "std": float(np.std(rect_region)),
+            "min": int(np.min(rect_region)),
+            "max": int(np.max(rect_region)),
+            "median": float(np.median(rect_region)),
+            "total_pixels": int(rect_region.size),
+            "width_pixels": int(rx2 - rx1),
+            "height_pixels": int(ry2 - ry1),
+            "width_um": float((rx2 - rx1) * self.camera.pixel_size * 1e6),
+            "height_um": float((ry2 - ry1) * self.camera.pixel_size * 1e6),
+        }
+
+    def _draw_rect_stats(self, display_img, start_y):
+        """在屏幕上显示矩形区域统计信息"""
+        if not self.show_rect_stats or self.current_rect_stats is None:
+            return start_y
+
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        line_height = 24
+        col = (0, 255, 255)  # 黄色
+        text_x = 10
+
+        # 显示矩形统计标题
+        start_y += line_height
+        cv2.putText(
+            display_img,
+            "=== Rect Stats ===",
+            (text_x, start_y),
+            font,
+            0.7,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
+
+        stats = self.current_rect_stats
+        items = [
+            f"Sum: {stats['sum']:,}",
+            f"Mean: {stats['mean']:.1f}, Std: {stats['std']:.1f}",
+            f"Min: {stats['min']}, Max: {stats['max']}, Median: {stats['median']:.1f}",
+            f"Size: {stats['width_pixels']}x{stats['height_pixels']} px ({stats['width_um']:.1f}x{stats['height_um']:.1f} um)",
+            f"Total pixels: {stats['total_pixels']:,}",
+        ]
+
+        for txt in items:
+            start_y += line_height
+            cv2.putText(
+                display_img, txt, (text_x, start_y), font, 0.6, col, 2, cv2.LINE_AA
+            )
+
+        return start_y + line_height  # 返回下一个可用的y位置
+
     def _draw_stats_bar(self, display_img, start_y):
         if not (self.show_stats):
             return
@@ -683,6 +961,16 @@ class BaslerViewer:
             line_height = 26
             bar_y = start_y + line_height  # start after HUD
             text_x = 10
+            self.stats_std_dx = (
+                self.avg_portion * self.stats_std_dx
+                + (1 - self.avg_portion) * stats_std_dx
+            )
+            self.stats_std_dy = (
+                self.avg_portion * self.stats_std_dy
+                + (1 - self.avg_portion) * stats_std_dy
+            )
+            stats_std_dx = self.stats_std_dx
+            stats_std_dy = self.stats_std_dy
 
             # 原始统计显示代码
             cv2.putText(
@@ -850,7 +1138,11 @@ class BaslerViewer:
 
                 # bar for sigma
                 stats_sigma = self.stats_sigma
-                stats_sigma_std = np.std(stats_sigma)
+                # stats_sigma_std = np.std(stats_sigma)
+                stats_sigma_std = self.avg_portion * self.stats_sigma_std + (
+                    1 - self.avg_portion
+                ) * np.std(stats_sigma)
+                self.stats_sigma_std = stats_sigma_std  # update the instance variable
                 bar_x = text_x + 320
                 bar_factor = 20  # scaling factor for curvature
                 max_bar_length = 100  # maximum bar length for curvature display
@@ -1154,6 +1446,27 @@ class BaslerViewer:
             self._dialog_save()
         elif key == ord("t"):
             self._switch_camera()
+        elif key == ord("w"):
+            # 切换Web服务器和实时矩形统计显示
+            if not self.web_server_enabled:
+                self._start_web_server()
+                self.show_rect_stats = True
+                logging.info(
+                    f"Web server started on http://localhost:{WEB_SERVER_PORT}"
+                )
+                logging.info("Real-time rectangle stats display enabled")
+            else:
+                self._stop_web_server()
+                self.show_rect_stats = False
+                logging.info("Web server stopped and rect stats display disabled")
+        elif key == ord("y"):
+            # self.camera.set_exposure_line(not self.camera.exposure_line_enabled)
+            self.camera.set_userdefined_line(not self.camera.userdefined_line_enabled)
+            logging.info(
+                f"userdefined line sync mode set to {self.camera.userdefined_line_enabled}"
+            )
+        #
+        self.save_status_to_json()
         return True
 
     def _adjust_exposure(self, key):
@@ -1169,7 +1482,7 @@ class BaslerViewer:
         ts = time.strftime("%Y%m%d_%H%M%S")
         jpg = os.path.join(DATA_DIR, f"vipa_{ts}.jpg")
         npy = os.path.join(DATA_DIR, f"vipa_{ts}.npy")
-        frame = self.camera.grab_image()
+        frame = self.frame
         cv2.imwrite(jpg, frame)
         np.save(npy, frame)
         logging.info("Saved %s, %s", jpg, npy)
@@ -1178,7 +1491,7 @@ class BaslerViewer:
         fp = choose_filename()
         if not fp:
             return
-        frame = self.camera.grab_image()
+        frame = self.frame
         cv2.imwrite(fp, frame)
         np.save(os.path.splitext(fp)[0] + ".npy", frame)
         logging.info("Saved %s (+ .npy)", fp)
@@ -1221,7 +1534,6 @@ class BaslerViewer:
             self.fit_rect_sensor = None
             self.do_fitting = False
             self.show_stats = False
-        # refresh ROI model
         logging.info("Switched to %s", self.camera.model_name)
 
     def _sleep_for_fps(self, frame_dt):

@@ -14,6 +14,10 @@ from scipy.special import erfc
 #     return coeff * z
 
 
+def gaussian_1d(x, mu, sigma):
+    return (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
+
+
 # making it meshgrid compatible
 def gaussian_2d(x, y, mu, cov):
     inv_cov = np.linalg.inv(cov)
@@ -31,8 +35,29 @@ def gaussian_2d(x, y, mu, cov):
     return coeff * np.exp(exponent)
 
 
-def gaussian_2d_offset(x: float, y: float, mu, cov, scale, offset) -> float:
-    return gaussian_2d(x, y, mu, cov) * scale + offset
+def gaussian_2d_exponent(x, y, mu, cov):
+    inv_cov = np.linalg.inv(cov)
+    # Compute the differences
+    diff_x = x - mu[0]
+    diff_y = y - mu[1]
+    # Compute the exponent for the Gaussian
+    exponent = -0.5 * (
+        inv_cov[0, 0] * diff_x**2
+        + 2 * inv_cov[0, 1] * diff_x * diff_y
+        + inv_cov[1, 1] * diff_y**2
+    )
+    return exponent
+
+
+def gaussian_1d_offset(x, mu, sigma, scale, offset) -> float:
+    return gaussian_1d(x, mu, sigma) * (scale * (sigma * np.sqrt(2 * np.pi))) + offset
+
+
+def gaussian_2d_offset(x, y, mu, cov, scale, offset) -> float:
+    return (
+        gaussian_2d(x, y, mu, cov) * (scale * (2 * np.pi * np.sqrt(np.linalg.det(cov))))
+        + offset
+    )
 
 
 def gaussian_2d_offset_saturated(
@@ -54,6 +79,24 @@ def gaussian_2d_smooth_heaviside(
     smooth_transition = amp * erfc((quadratic_form - 1) / transition_width)
 
     return smooth_transition
+
+
+def statistics_for_gaussian_1d(xdata, Idata):
+    # Flatten the arrays in case they are not 1D
+    xdata = xdata.flatten()
+    Idata = Idata.flatten()
+
+    # Calculate the sum of the data values
+    sum_I = np.sum(Idata)
+
+    # Calculate the weighted mean (mu)
+    mu = np.sum(xdata * Idata) / sum_I
+
+    # Calculate the weighted variance (sigma^2)
+    sigma_squared = np.sum(Idata * (xdata - mu) ** 2) / sum_I
+    sigma = np.sqrt(sigma_squared)
+
+    return mu, sigma
 
 
 def statistics_for_gaussian2d(xdata, ydata, Idata):
@@ -85,10 +128,62 @@ def statistics_for_gaussian2d(xdata, ydata, Idata):
     return mu, cov
 
 
-def popt_get_mu_cov(popt):
+def popt_get_mu_cov_1d(popt):
+    mu = popt[0]
+    sigma = popt[1]
+    return mu, sigma
+
+
+def popt_get_mu_cov_2d(popt):
     mu = popt[:2]
     cov = np.array([[popt[2], popt[3]], [popt[3], popt[4]]])
     return mu, cov
+
+
+def fit_gaussian_1d(X, Z, p0=None, offset=False):
+    X = np.array(X)
+    Z = np.array(Z)
+    if offset == False:
+        # fit to gaussian_1d using least square
+        def _residuals(p, x, z):
+            z_fit = gaussian_1d(x, p[0], p[1])
+            return z - z_fit
+
+    else:
+
+        def _residuals(p, x, z):
+            z_fit = gaussian_1d_offset(x, p[0], p[1], p[2], p[3])
+            return z - z_fit
+
+    xdata = np.array(X).flatten()
+    zdata = np.array(Z).flatten()
+    if p0 is None:
+        mu, sigma = statistics_for_gaussian_1d(X, Z)
+        print("Statistics for Gaussian 1D: ", mu, sigma)
+        if offset == False:
+            p0 = np.array([mu, sigma])
+        else:
+            # get the value at mu
+            xidx = np.unravel_index(np.argmin(np.abs(X - mu)), X.shape)[0]
+            Z_center = Z[xidx]
+            print("X,Z_center: ", X[xidx], Z_center)
+            if np.abs(Z_center - np.min(Z)) > np.abs(Z_center - np.max(Z)):
+                print("Z_center is closer to max(Z)")
+                scale = +(np.max(Z) - np.min(Z))
+                offset = np.min(Z)
+            else:
+                print("Z_center is closer to min(Z)")
+                scale = -(np.max(Z) - np.min(Z))
+                offset = np.max(Z)
+            p0 = np.array([mu, sigma, scale, offset])
+        print("Initial guess for p0: ", p0)
+        print("Initial residuals: ", np.sum(_residuals(p0, xdata, zdata) ** 2))
+    from scipy.optimize import least_squares
+
+    res = least_squares(_residuals, p0, args=(xdata, zdata), ftol=1e-10, xtol=1e-10)
+    popt = res.x
+    print("Final residuals: ", np.sum(_residuals(popt, xdata, zdata) ** 2))
+    return popt
 
 
 def fit_gaussian_2d(X, Y, Z, p0=None, offset=False, saturation=None):
@@ -99,14 +194,14 @@ def fit_gaussian_2d(X, Y, Z, p0=None, offset=False, saturation=None):
     if offset == False:
         # fit to gaussian_2d_cov using least square
         def _residuals(p, x, y, z):
-            mu, cov = popt_get_mu_cov(p)
+            mu, cov = popt_get_mu_cov_2d(p)
             z_fit = np.array([gaussian_2d(x_, y_, mu, cov) for x_, y_ in zip(x, y)])
             return z - z_fit
 
     else:
 
         def _residuals(p, x, y, z):
-            mu, cov = popt_get_mu_cov(p)
+            mu, cov = popt_get_mu_cov_2d(p)
             z_fit = np.array(
                 [
                     gaussian_2d_offset(x_, y_, mu, cov, p[5], p[6])
@@ -118,7 +213,7 @@ def fit_gaussian_2d(X, Y, Z, p0=None, offset=False, saturation=None):
     if saturation is not None:
 
         def _residuals(p, x, y, z):
-            mu, cov = popt_get_mu_cov(p)
+            mu, cov = popt_get_mu_cov_2d(p)
             z_fit = np.array(
                 [
                     gaussian_2d_offset_saturated(
@@ -175,7 +270,7 @@ def fit_gaussian_2d_smooth_heaviside(X, Y, Z, p0=None):
 
     # fit to gaussian_2d_cov using least square
     def _residuals(p, x, y, z):
-        mu, cov = popt_get_mu_cov(p)
+        mu, cov = popt_get_mu_cov_2d(p)
         z_fit = np.array(
             [
                 gaussian_2d_smooth_heaviside(x_, y_, mu, cov, p[5], p[6])
@@ -209,7 +304,7 @@ def fit_and_plot_gaussian_2d(X, Y, Z, p0=None, ax=None, offset=False, saturation
     X_new = np.linspace(*bounds_x, 100)
     Y_new = np.linspace(*bounds_y, 100)
     X_new, Y_new = np.meshgrid(X_new, Y_new)
-    mu, cov = popt_get_mu_cov(popt)
+    mu, cov = popt_get_mu_cov_2d(popt)
     Z_new = np.array(
         [gaussian_2d(x_, y_, mu, cov) for x_, y_ in zip(X_new.ravel(), Y_new.ravel())]
     )
@@ -232,7 +327,7 @@ def fit_and_plot_smooth_heaviside(X, Y, Z, p0=None, ax=None):
     X_new = np.linspace(*bounds_x, 100)
     Y_new = np.linspace(*bounds_y, 100)
     X_new, Y_new = np.meshgrid(X_new, Y_new)
-    mu, cov = popt_get_mu_cov(popt)
+    mu, cov = popt_get_mu_cov_2d(popt)
     Z_new = np.array(
         [
             gaussian_2d_smooth_heaviside(x_, y_, mu, cov, popt[5], popt[6])
@@ -273,7 +368,24 @@ def statistics_skewness(X0, Z_row):
 
 
 if __name__ == "__main__":
-    # test
+    # test 1D gaussian fitting
+    x = np.linspace(-5, 5, 100)
+    mu_true = 0.5
+    sigma_true = 1.0
+    scale_true = 2.0
+    offset_true = 0.5
+    y = gaussian_1d_offset(x, mu_true, sigma_true, scale_true, offset_true)
+    popt = fit_gaussian_1d(x, y, offset=True)
+    print("Fitted parameters: ", popt)
+    plt.plot(x, y, label="Data")
+    y_fit = gaussian_1d_offset(x, *popt)
+    plt.plot(x, y_fit, "--", label="Gaussian fit")
+    plt.legend()
+    plt.title("1D Gaussian Fit Test")
+    plt.xlabel("x")
+    plt.ylabel("Intensity")
+    plt.show()
+    # test 2D gaussian fitting
     x = np.linspace(-1, 1, 20)
     y = np.linspace(-1, 1, 20)
     X, Y = np.meshgrid(x, y)

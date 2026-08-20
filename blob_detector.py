@@ -34,6 +34,40 @@ def blob_keypoint_detector(im):
     return keypoints
 
 
+def blob_keypoint_detector_ugly(im):
+    """
+    Blob detection using OpenCV's SimpleBlobDetector.
+    OpenCV's SimpleBlobDetector only supports CV_8U, so we create a normalized temporary version for detection.
+    """
+    if im.dtype == np.uint16:
+        im_norm = cv2.normalize(im, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+        # print("Converted to uint8")
+    else:
+        im_norm = im
+
+    params = cv2.SimpleBlobDetector_Params()
+    params.minThreshold = 10
+    params.maxThreshold = 255
+    params.thresholdStep = 2
+    params.minRepeatability = 1
+    params.filterByArea = True
+    params.minArea = 800
+    params.maxArea = 10000000000
+    params.filterByCircularity = True
+    params.minCircularity = 0.2
+    params.filterByConvexity = False
+    params.minConvexity = 0.001
+    params.filterByInertia = False
+    params.minInertiaRatio = 0.01
+    params.filterByColor = True
+    params.blobColor = 255
+
+    detector = cv2.SimpleBlobDetector_create(params)
+    #
+    keypoints = detector.detect(im_norm)
+    return keypoints
+
+
 def blur_threshold_morph(im, Ng=21, Nm=11):
     """
     Gaussian blur, threshold, and morphological operations
@@ -85,16 +119,34 @@ def fit_gaussian_within_roi(img, spot, plot=False, ax=None):
     if sigma_0 < sigma_1:
         sigma_0, sigma_1 = sigma_1, sigma_0
         vec_0, vec_1 = vec_1, vec_0
-    # sigma = np.sqrt(sigma_0 * sigma_1)
+    sigma = np.sqrt(sigma_0 * sigma_1)
+
     x = mu[0]
     y = mu[1]
+
+    # Robust I0 calculation - use multiple methods
+    # Method 1: raw Z value at peak position
+    x_idx = (np.abs(X[0, :] - mu[0])).argmin()
+    y_idx = (np.abs(Y[:, 0] - mu[1])).argmin()
+    I0_peak = Z[y_idx, x_idx]
+
+    # Method 2: Integrated intensity within 1 sigma ellipse
+    exponent = gaussian_2d_exponent(X, Y, mu, cov)
+    mask = np.exp(exponent) >= np.exp(-0.5)
+    I0_integrated = np.sum(Z[mask])
+    factor = 2 * (1 - np.exp(-0.5))
+    I0_weighted = I0_integrated / (np.sum(mask) * factor)
+
     spot = {
         "x": x,
         "y": y,
         "sigma_0": sigma_0,
         "sigma_1": sigma_1,
+        "sigma": sigma,
         "vec_0": vec_0,
         "vec_1": vec_1,
+        "I0": I0_peak,
+        "I0_weighted": I0_weighted,
     }
     # print(spot)
     if plot:
@@ -125,6 +177,14 @@ def fit_gaussian_within_roi(img, spot, plot=False, ax=None):
 def blob_detector(im, plot=False):
     im_blur = blur_threshold_morph(im)
     keypoints = blob_keypoint_detector(im_blur)
+    spots = keypts_to_spots(keypoints)
+    spots = [fit_gaussian_within_roi(im, spot, plot=plot) for spot in spots]
+    return spots
+
+
+def blob_detector_ugly(im, plot=False):
+    # im_blur = blur_threshold_morph(im)
+    keypoints = blob_keypoint_detector_ugly(im)
     spots = keypts_to_spots(keypoints)
     spots = [fit_gaussian_within_roi(im, spot, plot=plot) for spot in spots]
     return spots

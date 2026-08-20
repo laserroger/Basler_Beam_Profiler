@@ -2,5 +2,8 @@ __pycache__/
 build/
 dist/
 *.spec
+# runtime output
+data/
+pylon_camera.json
 # GitHub Actions artifacts
 .github/workflows/*.log

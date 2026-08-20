@@ -6,9 +6,18 @@ import yaml
 import os
 
 
+def _app_dir():
+    """Next to the .exe when frozen by PyInstaller, next to this file otherwise."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
 def load_camera_config():
     """Load camera configuration from YAML file."""
-    config_path = "./camera_config.yaml"
+    config_path = os.path.join(_app_dir(), "camera_config.yaml")
+    if not os.path.exists(config_path):
+        config_path = "./camera_config.yaml"  # fall back to the working directory
     try:
         with open(config_path, "r", encoding="utf-8") as file:
             config = yaml.safe_load(file)
@@ -28,10 +37,10 @@ CONSTS = load_camera_config()
 
 
 class BaslerCamera:
-    def __init__(self, mode="8Bit", *, device_idx: int = 0):
+    def __init__(self, mode="8Bit", device_idx: int = 0):
         self.mode = mode
         self.auto_exposure = False
-        self.MIN_EXPOSURE = 30
+        self.MIN_EXPOSURE = 20
         self.MAX_EXPOSURE = 20000
         self._ae_buffer = deque(maxlen=5)
         self.pid_kp = 0.05  # Proportional gain; tune as needed
@@ -88,10 +97,59 @@ class BaslerCamera:
             raise ValueError(f"Invalid mode: {mode}")
         self.converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
 
+        # >>> Software triggering.  Not every model exposes it, so keep track of
+        # whether it was actually armed - grab_image() only fires the trigger if
+        # it was, otherwise the camera free-runs as before.
+        self.software_trigger = False
+        try:
+            self.camera.TriggerSelector.Value = "FrameStart"
+            self.camera.TriggerMode.Value = "On"
+            self.camera.TriggerSource.Value = "Software"
+            self.software_trigger = True
+        except Exception as e:
+            logging.warning(f"Software trigger unavailable, free-running: {e}")
+
         # >>> Set camera settings
         self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
         self.Gain = 0
         self.ExposureTime = 200
+
+        # >>> Line2 mirrors the exposure window (active-low) for scope / DAQ sync.
+        self.exposure_line_available = False
+        try:
+            self.camera.LineSelector.Value = "Line2"
+            self.camera.LineMode.Value = "Output"
+            self.camera.LineInverter.Value = True
+            self.camera.LineSource.Value = "ExposureActive"
+            self.exposure_line_available = True
+        except Exception as e:
+            logging.warning(f"Line2 exposure output unavailable: {e}")
+
+        # >>> Line3 is a user-driven output, pulsed low around each acquisition.
+        self.userdefined_line_enabled = False
+        self.userdefined_line_available = self.set_userdefined_line(False)
+        if not self.userdefined_line_available:
+            logging.warning("Line3 user output unavailable on this camera")
+
+    def set_userdefined_line(self, enable: bool) -> bool:
+        """Configure Line3 as a user-controlled output.  Returns True on success."""
+        try:
+            if enable:
+                self.camera.LineSelector.Value = "Line3"
+                self.camera.LineMode.Value = "Output"
+                self.camera.LineInverter.Value = False
+                self.camera.LineSource.Value = "UserOutput1"
+                self.camera.UserOutputSelector.Value = "UserOutput1"
+                self.camera.UserOutputValue.Value = True  # Set high
+            else:
+                self.camera.LineSelector.Value = "Line3"
+                self.camera.LineMode.Value = "Input"
+        except Exception as e:
+            logging.error(f"Failed to set user-defined line: {e}")
+            self.userdefined_line_enabled = False
+            return False
+        self.userdefined_line_enabled = enable
+        return True
 
     def pixel_to_coord(self, i, j):
         x = (i - self.W / 2) * self.pixel_size
@@ -167,6 +225,14 @@ class BaslerCamera:
         self.camera.Height.Value = int(height)
         self.camera.OffsetX.Value = int(offset_x)
         self.camera.OffsetY.Value = int(offset_y)
+
+    def _set_ROI_from_x1y1x2y2(self, x1, y1, x2, y2):
+        width = int((x2 - x1))
+        height = int((y2 - y1))
+        offset_x = int(x1)
+        offset_y = int(y1)
+        self.ROI = (width, height, offset_x, offset_y)
+        return (width, height, offset_x, offset_y)
 
     def _set_autofunc_ROI(self, width, height, offset_x, offset_y):
         self.camera.AutoFunctionROIWidth.Value = int(width)
@@ -258,9 +324,22 @@ class BaslerCamera:
         self.auto_exposure = False
 
     def grab_image(self):
+        if self.userdefined_line_enabled:
+            self.camera.UserOutputSelector.Value = "UserOutput1"
+            self.camera.UserOutputValue.Value = False  # Set low
+
+        if self.software_trigger:
+            self.camera.TriggerSoftware.Execute()  # Send software trigger
+
         grab_result = self.camera.RetrieveResult(
             1000, pylon.TimeoutHandling_ThrowException
         )
+
+        if self.userdefined_line_enabled:
+            self.camera.UserOutputSelector.Value = "UserOutput1"
+            self.camera.UserOutputValue.Value = True  # Set high again
+        #
+        img = None
         if grab_result.GrabSucceeded():
             image = self.converter.Convert(grab_result)
             img = np.array(
@@ -313,9 +392,7 @@ class BaslerCamera:
                     )
                     self.ExposureTime = new_exposure
 
-            return img
-
-        return None
+        return img
 
     def close(self):
         self.camera.StopGrabbing()
@@ -346,6 +423,7 @@ if __name__ == "__main__":
     camera = BaslerCamera(mode="16Bit")
     # Example: set a custom ROI
     # camera.CROI((0, 0, 4000, 4000))
+    # camera._set_ROI_from_x1y1x2y2(2426, 1875, 2456, 1905)
     img = camera.grab_image()
     # Optionally: reset to full ROI
     # camera.set_full_roi()
