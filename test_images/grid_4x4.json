@@ -1,0 +1,130 @@
+[
+  {
+    "x": 240.0,
+    "y": 240.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 480.0,
+    "y": 240.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 720.0,
+    "y": 240.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 960.0,
+    "y": 240.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 240.0,
+    "y": 480.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 480.0,
+    "y": 480.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 720.0,
+    "y": 480.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 960.0,
+    "y": 480.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 240.0,
+    "y": 720.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 480.0,
+    "y": 720.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 720.0,
+    "y": 720.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 960.0,
+    "y": 720.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 240.0,
+    "y": 960.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 480.0,
+    "y": 960.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 720.0,
+    "y": 960.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  },
+  {
+    "x": 960.0,
+    "y": 960.0,
+    "sigma_x": 10.0,
+    "sigma_y": 10.0,
+    "theta": 0.0,
+    "amplitude": 0.85
+  }
+]

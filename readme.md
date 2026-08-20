@@ -1,17 +1,67 @@
 # Basler Beam Profiler
 
-The Basler Beam Profiler is a Python application designed to interface with Basler cameras for beam profiling tasks.
+A Python application for live laser-beam profiling with Basler cameras: spot
+detection, sub-pixel 2D Gaussian fits, beam-array (grid) statistics, an HTTP
+API and hardware sync outputs.
 
 ![Demo](docs/demo.png)
 
-
 ## Usage
-### Running the Application
+
 ```bash
 pip install -r requirements.txt
-python pylon_camera.py
+python -m beam_profiler            # live camera (falls back to the simulator)
+python -m beam_profiler --sim      # simulated camera, no hardware needed
+python pylon_camera.py             # legacy entry point, same application
 ```
 
+### Simulated camera
+
+`--sim` (or having no camera connected) renders a fixed grid of Gaussian spots
+with realistic noise in real time, so every CV function — blob detection,
+Gaussian fitting, row/column statistics, auto-exposure — can be exercised
+without hardware:
+
+```bash
+python -m beam_profiler --sim --sim-grid 8x8 --sim-jitter 0   # static 8x8 grid
+python -m beam_profiler --sim --sim-size 2048x2048            # bigger sensor
+```
+
+Fixed spot pictures with ground-truth JSON (for offline testing) are generated
+with:
+
+```bash
+python tools/make_test_images.py   # writes test_images/*.png/.npy/.json
+```
+
+### Architecture
+
+```
+beam_profiler/
+├── __main__.py        CLI entry point
+├── config.py          paths, constants, camera_config.yaml loading
+├── synthetic.py       synthetic spot images (simulator, tests, tools)
+├── roi.py             ROI zoom model + sensor<->display mapping
+├── cameras/           base.py (interface + auto-exposure), basler.py, simulated.py
+├── processing/        blobs.py (detection + Gaussian fits), grid.py, stats.py
+├── ui/                viewer.py (main loop, input), overlays.py (HUD, bars)
+├── server.py          Flask HTTP API
+└── status.py          pylon_camera.json mirror
+```
+
+Spot detection runs on a ≤1024 px downscale of the frame and refines each spot
+with a sub-pixel moment fit on a full-resolution crop, so even 25 MP sensors
+profile at interactive rates.
+
+### Tests
+
+```bash
+pip install pytest
+pytest
+```
+
+The tests validate the CV pipeline against synthetic images with known ground
+truth (positions, widths, orientation, grid classification).
 
 ### Configuring the camera
 
@@ -19,12 +69,14 @@ python pylon_camera.py
 
 ```yaml
 cameras:
-  a2A5060-15umBAS:                     # the name should match the camera name shown in pylon_camera
+  a2A5060-15umBAS:                     # must match the camera model name
     default_roi: [5060, 5060, 4, 4]    # [width, height, x_pad, y_pad]
     pixel_size: 2.5e-6                 # pixel size in meters, i.e. 2.5um
 ```
+
 ### Using the compiled application
-First clone this repo, setup `camera_config.yaml`
+
+First clone this repo and set up `camera_config.yaml`.
 
 Check release to download the latest version: [Releases](https://github.com/tim4431/Basler_Beam_Profiler/releases)
 
@@ -43,12 +95,12 @@ next to the executable.
 - `c`: clear the white rectangle
 - `ctrl + mouse drag`: create a green rectangle in the canvas, only blobs inside the rectangle will be fitted
 - `v`: clear the green rectangle
-- `s`: quick save the current frame
+- `s`: quick save the current frame (JPEG + raw `.npy`)
 - `d`: save the current frame with dialogue box, allowing the user to choose the file location and name
 - `t`: switch to the next camera (if multiple cameras are connected)
 - `w`: toggle the HTTP server (port 5000), together with the live pixel statistics of the white rectangle drawn on the canvas
 - `y`: toggle the user-defined line output (Line3) used to sync external hardware
-- `mouse wheel`: zoom in/out the canvas
+- `mouse wheel`: zoom in/out the canvas (`ctrl + wheel`: change aspect ratio)
 
 ## Remote control / readout
 

@@ -7,3 +7,7 @@ data/
 pylon_camera.json
 # GitHub Actions artifacts
 .github/workflows/*.log
+# generated test data (PNG + JSON ground truth are committed)
+test_images/*.npy
+.venv/
+.pytest_cache/
