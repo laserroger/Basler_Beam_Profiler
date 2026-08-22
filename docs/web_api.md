@@ -17,6 +17,8 @@ rectangle (`fit_rect`) are handled by separate endpoints.
 | `GET /api/rect_stats` | Pixel statistics inside the white rectangle |
 | `GET /api/fit_rect_stats` | Pixel statistics inside the green fitting rectangle |
 | `GET /api/spots` | Detected spots plus the aggregated row/column statistics |
+| `GET /api/fit_config` | Current spot-fitting parameters, plus each setting's range and help text |
+| `PUT /api/fit_config` | Update spot-fitting parameters; JSON body of `{name: value}`, unknown names are rejected |
 | `GET /api/image` | Current frame as JPEG |
 | `GET /api/image_within_rect` | White-rectangle crop of the current frame as JPEG |
 

@@ -7,12 +7,18 @@ CUDA context cost (~0.8 s) is only paid by machines that have one.
 
 Why a hand-written kernel instead of stacked CuPy array ops: the per-spot work
 is tiny (a ~35x35 crop), so the GPU spends its time waiting for Python to issue
-the next launch.  The array-op version needs ~50 kernel launches per distinct
-crop size; the fused kernel below is a single launch for all spots, handles a
-different crop size per spot, and keeps every intermediate in registers.
+the next launch.  The array-op version needs ~50 launches per distinct crop
+size *per stage*; the kernel below runs every stage, every adaptive iteration
+and every crop size in a **single launch**, one block per spot, with each block
+resizing its own crop between stages.
+
+The maths must stay identical to `fit.fit_spot` - `tests/test_processing.py`
+asserts that to 1e-9, so any change here has to be mirrored there and in
+`fit.fit_crops`.
 
 Set BEAM_PROFILER_GPU=0 to force the CPU path, or =force to use the GPU even
-below the spot-count threshold (useful for benchmarking).
+below the spot-count threshold (useful for benchmarking).  Without the
+variable the settings window (`gpu_enabled`, `gpu_min_spots`) decides.
 """
 
 from __future__ import annotations
@@ -25,10 +31,7 @@ import numpy as np
 
 from .spots import SpotArray
 
-# below this many spots the fixed cost (frame upload + launch) is not worth it;
-# measured crossover on a 4070 SUPER is ~300 spots
-MIN_SPOTS = 400
-MAX_CROP = 96  # kernel shared-memory limit on the crop side
+MAX_CROP = 512  # kernel shared-memory limit on the crop side, px
 BLOCK = 128  # threads per block, must be a power of two
 
 _cupy = None  # None = not probed yet, False = unusable
@@ -40,6 +43,9 @@ _last_backend = "cpu"  # which path actually ran the last batch, for the HUD
 _KERNEL_SOURCE = r"""
 #define BLOCK %(block)d
 #define MAX_BORDER %(max_border)d
+#define I0W_NORM %(i0w_norm).17g
+#define QUAD_MAX %(quad_max).17g
+#define EPSV %(eps).17g
 
 __device__ __forceinline__ double block_sum(double v, double *sh)
 {
@@ -55,7 +61,7 @@ __device__ __forceinline__ double block_sum(double v, double *sh)
     return r;
 }
 
-// index of the sample nearest to c, ties going to the lower index (numpy argmin)
+// index of the sample nearest to c, ties to the lower index (numpy argmin)
 __device__ __forceinline__ int nearest_index(double c, int n)
 {
     int lo = (int)floor(c);
@@ -64,86 +70,165 @@ __device__ __forceinline__ int nearest_index(double c, int n)
     return (fabs(c - (double)lo) <= fabs(c - (double)(lo + 1))) ? lo : lo + 1;
 }
 
+__device__ __forceinline__ int quantise(double twice_half, int q, int lo, int hi)
+{
+    int i = (int)(ceil(twice_half / (double)q) * (double)q);
+    return i < lo ? lo : (i > hi ? hi : i);
+}
+
 #define FIT_KERNEL(NAME, PIXEL)                                                     \
 extern "C" __global__ void NAME(                                                    \
-    const PIXEL *__restrict__ img, const int W,                                     \
-    const long long *__restrict__ x0a, const long long *__restrict__ y0a,           \
-    const int *__restrict__ cwa, const int *__restrict__ cha,                       \
+    const PIXEL *__restrict__ img, const int W, const int H,                        \
+    const double *__restrict__ cx0, const double *__restrict__ cy0,                 \
+    const double *__restrict__ hx0, const double *__restrict__ hy0,                 \
+    const double *__restrict__ capa,                                                \
+    const double crop_sigma, const int stages, const int adaptive_iters,            \
+    const int quantum, const int min_crop, const int max_crop,                      \
+    const int subtract_bg, const int clip_neg,                                      \
     double *__restrict__ out, const int n)                                          \
 {                                                                                   \
     const int b = blockIdx.x;                                                       \
     if (b >= n) return;                                                             \
     const int t = threadIdx.x;                                                      \
-    const int x0 = (int)x0a[b], y0 = (int)y0a[b];                                    \
-    const int cw = cwa[b], ch = cha[b];                                             \
-    const int npix = cw * ch;                                                        \
                                                                                     \
     __shared__ double sh[BLOCK];                                                    \
     __shared__ float border[MAX_BORDER];                                            \
     __shared__ float med_lo, med_hi;                                                \
                                                                                     \
-    /* crop border, corners counted twice (matches the numpy concatenate) */        \
-    const int m = 2 * (cw + ch);                                                    \
-    for (int i = t; i < m; i += BLOCK) {                                            \
-        float v;                                                                    \
-        if (i < cw)               v = img[(long long)y0 * W + x0 + i];              \
-        else if (i < 2 * cw)      v = img[(long long)(y0 + ch - 1) * W + x0 + i - cw]; \
-        else if (i < 2 * cw + ch) v = img[(long long)(y0 + i - 2 * cw) * W + x0];   \
-        else                      v = img[(long long)(y0 + i - 2 * cw - ch) * W + x0 + cw - 1]; \
-        border[i] = v;                                                              \
-    }                                                                               \
-    if (t == 0) { med_lo = 0.0f; med_hi = 0.0f; }                                   \
-    __syncthreads();                                                                \
-                                                                                    \
-    /* median by rank counting: v is the k-th smallest iff lt <= k < lt + eq */     \
-    const int k_lo = (m - 1) / 2, k_hi = m / 2;                                     \
-    for (int i = t; i < m; i += BLOCK) {                                            \
-        const float v = border[i];                                                  \
-        int lt = 0, eq = 0;                                                         \
-        for (int j = 0; j < m; ++j) { float u = border[j]; lt += (u < v); eq += (u == v); } \
-        if (lt <= k_lo && k_lo < lt + eq) med_lo = v;                                \
-        if (lt <= k_hi && k_hi < lt + eq) med_hi = v;                                \
-    }                                                                               \
-    __syncthreads();                                                                \
-    const float bg = (m & 1) ? med_lo : (med_lo + med_hi) * 0.5f;                    \
-                                                                                    \
-    /* pass 1: total intensity and first moments */                                 \
-    double S = 0.0, Sx = 0.0, Sy = 0.0;                                             \
-    for (int p = t; p < npix; p += BLOCK) {                                         \
-        const int r = p / cw, c = p - r * cw;                                       \
-        float z = (float)img[(long long)(y0 + r) * W + x0 + c] - bg;                \
-        if (!(z > 0.0f)) continue;                                                  \
-        const double zd = (double)z;                                                \
-        S += zd; Sx += zd * (double)(x0 + c); Sy += zd * (double)(y0 + r);          \
-    }                                                                               \
-    S = block_sum(S, sh); Sx = block_sum(Sx, sh); Sy = block_sum(Sy, sh);           \
-    if (!(S > 0.0)) { if (t == 0) out[b * 9 + 8] = 0.0; return; }                   \
-    const double mx = Sx / S, my = Sy / S;                                          \
-                                                                                    \
-    /* pass 2: central second moments */                                            \
+    double cx = cx0[b], cy = cy0[b];                                                \
+    double hx = hx0[b], hy = hy0[b];                                                \
+    const double cap = capa[b];                                                     \
     double cxx = 0.0, cyy = 0.0, cxy = 0.0;                                         \
-    for (int p = t; p < npix; p += BLOCK) {                                         \
-        const int r = p / cw, c = p - r * cw;                                       \
-        float z = (float)img[(long long)(y0 + r) * W + x0 + c] - bg;                \
-        if (!(z > 0.0f)) continue;                                                  \
-        const double zd = (double)z;                                                \
-        const double dx = (double)(x0 + c) - mx, dy = (double)(y0 + r) - my;        \
-        cxx += zd * dx * dx; cyy += zd * dy * dy; cxy += zd * dx * dy;              \
-    }                                                                               \
-    cxx = block_sum(cxx, sh) / S;                                                   \
-    cyy = block_sum(cyy, sh) / S;                                                   \
-    cxy = block_sum(cxy, sh) / S;                                                   \
+    int x0 = 0, y0 = 0, cw = 0, ch = 0;                                             \
+    int px0 = -1, py0 = -1, pcw = -1, pch = -1;                                     \
+    float bg = 0.0f;                                                                \
                                                                                     \
-    /* pass 3: mean intensity inside the 1-sigma ellipse */                         \
+    const int hi_w = max_crop < W ? max_crop : W;                                   \
+    const int hi_h = max_crop < H ? max_crop : H;                                   \
+                                                                                    \
+    for (int stage = 0; stage <= stages; ++stage) {                                 \
+        cw = quantise(2.0 * hx, quantum, min_crop, hi_w);                           \
+        ch = quantise(2.0 * hy, quantum, min_crop, hi_h);                           \
+        x0 = (int)rint(cx) - cw / 2;   /* rint: half-to-even, like np.round */      \
+        y0 = (int)rint(cy) - ch / 2;                                                \
+        if (x0 < 0) x0 = 0;                                                         \
+        if (x0 > W - cw) x0 = W - cw;                                               \
+        if (y0 < 0) y0 = 0;                                                         \
+        if (y0 > H - ch) y0 = H - ch;                                               \
+        /* the fit depends only on the crop, so a crop that did not move would   */ \
+        /* return exactly what it returned last stage.  The final stage always   */ \
+        /* runs, because only it computes I0 and the ellipse mean.               */ \
+        const int settled = (cw == pcw && ch == pch && x0 == px0 && y0 == py0);     \
+        pcw = cw; pch = ch; px0 = x0; py0 = y0;                                     \
+        if (settled && stage < stages) continue;                                    \
+        const int npix = cw * ch;                                                   \
+                                                                                    \
+        /* ---- local background: median of the crop border ---- */                 \
+        bg = 0.0f;                                                                  \
+        if (subtract_bg) {                                                          \
+            const int m = 2 * (cw + ch);  /* corners twice, as np.concatenate */    \
+            for (int i = t; i < m; i += BLOCK) {                                    \
+                float v;                                                            \
+                if (i < cw)               v = img[(long long)y0 * W + x0 + i];      \
+                else if (i < 2 * cw)      v = img[(long long)(y0 + ch - 1) * W + x0 + i - cw]; \
+                else if (i < 2 * cw + ch) v = img[(long long)(y0 + i - 2 * cw) * W + x0]; \
+                else                      v = img[(long long)(y0 + i - 2 * cw - ch) * W + x0 + cw - 1]; \
+                border[i] = v;                                                      \
+            }                                                                       \
+            if (t == 0) { med_lo = 0.0f; med_hi = 0.0f; }                           \
+            __syncthreads();                                                        \
+            const int k_lo = (m - 1) / 2, k_hi = m / 2;                             \
+            for (int i = t; i < m; i += BLOCK) {                                    \
+                const float v = border[i];                                          \
+                int lt = 0, eq = 0;                                                 \
+                for (int j = 0; j < m; ++j) { float u = border[j]; lt += (u < v); eq += (u == v); } \
+                if (lt <= k_lo && k_lo < lt + eq) med_lo = v;                       \
+                if (lt <= k_hi && k_hi < lt + eq) med_hi = v;                       \
+            }                                                                       \
+            __syncthreads();                                                        \
+            bg = (m & 1) ? med_lo : (med_lo + med_hi) * 0.5f;                       \
+        }                                                                           \
+                                                                                    \
+        /* ---- plain second moments ---- */                                        \
+        double S = 0.0, Sx = 0.0, Sy = 0.0;                                         \
+        for (int p = t; p < npix; p += BLOCK) {                                     \
+            const int r = p / cw, c = p - r * cw;                                   \
+            float z = (float)img[(long long)(y0 + r) * W + x0 + c] - bg;            \
+            if (clip_neg && z < 0.0f) z = 0.0f;                                     \
+            const double zd = (double)z;                                            \
+            S += zd; Sx += zd * (double)(x0 + c); Sy += zd * (double)(y0 + r);      \
+        }                                                                           \
+        S = block_sum(S, sh); Sx = block_sum(Sx, sh); Sy = block_sum(Sy, sh);       \
+        if (!(S > 0.0)) { if (t == 0) out[b * 9 + 8] = 0.0; return; }               \
+        cx = Sx / S; cy = Sy / S;                                                   \
+                                                                                    \
+        double axx = 0.0, ayy = 0.0, axy = 0.0;                                     \
+        for (int p = t; p < npix; p += BLOCK) {                                     \
+            const int r = p / cw, c = p - r * cw;                                   \
+            float z = (float)img[(long long)(y0 + r) * W + x0 + c] - bg;            \
+            if (clip_neg && z < 0.0f) z = 0.0f;                                     \
+            const double zd = (double)z;                                            \
+            const double dx = (double)(x0 + c) - cx, dy = (double)(y0 + r) - cy;    \
+            axx += zd * dx * dx; ayy += zd * dy * dy; axy += zd * dx * dy;          \
+        }                                                                           \
+        cxx = block_sum(axx, sh) / S;                                               \
+        cyy = block_sum(ayy, sh) / S;                                               \
+        cxy = block_sum(axy, sh) / S;                                               \
+                                                                                    \
+        /* ---- adaptive: Gaussian weight matched to C, fixed point C = 2M ---- */  \
+        for (int it = 0; it < adaptive_iters; ++it) {                               \
+            const double det = cxx * cyy - cxy * cxy;                               \
+            if (!(det > 0.0)) break;                                                \
+            const double ia = cyy / det, ib = cxy / det, ic = cxx / det;            \
+            double ws = 0.0, wxs = 0.0, wys = 0.0;                                  \
+            for (int p = t; p < npix; p += BLOCK) {                                 \
+                const int r = p / cw, c = p - r * cw;                               \
+                float z = (float)img[(long long)(y0 + r) * W + x0 + c] - bg;        \
+                if (clip_neg && z < 0.0f) z = 0.0f;                                 \
+                const double dx = (double)(x0 + c) - cx, dy = (double)(y0 + r) - cy; \
+                double q = ia * dx * dx + ic * dy * dy - 2.0 * ib * dy * dx;        \
+                q = q < 0.0 ? 0.0 : (q > QUAD_MAX ? QUAD_MAX : q);                  \
+                const double wz = exp(-0.5 * q) * (double)z;                        \
+                ws += wz; wxs += wz * (double)(x0 + c); wys += wz * (double)(y0 + r); \
+            }                                                                       \
+            ws = block_sum(ws, sh); wxs = block_sum(wxs, sh); wys = block_sum(wys, sh); \
+            if (!(ws > 0.0)) break;                                                 \
+            const double nx = wxs / ws, ny = wys / ws;                              \
+            double bxx = 0.0, byy = 0.0, bxy = 0.0;                                 \
+            for (int p = t; p < npix; p += BLOCK) {                                 \
+                const int r = p / cw, c = p - r * cw;                               \
+                float z = (float)img[(long long)(y0 + r) * W + x0 + c] - bg;        \
+                if (clip_neg && z < 0.0f) z = 0.0f;                                 \
+                const double dx = (double)(x0 + c) - cx, dy = (double)(y0 + r) - cy; \
+                double q = ia * dx * dx + ic * dy * dy - 2.0 * ib * dy * dx;        \
+                q = q < 0.0 ? 0.0 : (q > QUAD_MAX ? QUAD_MAX : q);                  \
+                const double wz = exp(-0.5 * q) * (double)z;                        \
+                const double ex = (double)(x0 + c) - nx, ey = (double)(y0 + r) - ny; \
+                bxx += wz * ex * ex; byy += wz * ey * ey; bxy += wz * ex * ey;      \
+            }                                                                       \
+            bxx = block_sum(bxx, sh); byy = block_sum(byy, sh); bxy = block_sum(bxy, sh); \
+            cx = nx; cy = ny;                                                       \
+            cxx = 2.0 * bxx / ws; cyy = 2.0 * byy / ws; cxy = 2.0 * bxy / ws;       \
+        }                                                                           \
+                                                                                    \
+        if (stage < stages) {                                                       \
+            const double sx = crop_sigma * sqrt(cxx > EPSV ? cxx : EPSV);           \
+            const double sy = crop_sigma * sqrt(cyy > EPSV ? cyy : EPSV);           \
+            hx = sx < cap ? sx : cap;                                               \
+            hy = sy < cap ? sy : cap;                                               \
+        }                                                                           \
+    }                                                                               \
+                                                                                    \
+    /* ---- peak intensity and the 1-sigma ellipse mean, on the final crop ---- */  \
     const double det = cxx * cyy - cxy * cxy;                                       \
     double e_sum = 0.0, e_cnt = 0.0;                                                \
     if (det > 0.0) {                                                                \
         const double ia = cyy / det, ib = cxy / det, ic = cxx / det;                \
-        for (int p = t; p < npix; p += BLOCK) {                                     \
+        for (int p = t; p < cw * ch; p += BLOCK) {                                  \
             const int r = p / cw, c = p - r * cw;                                   \
             float z = (float)img[(long long)(y0 + r) * W + x0 + c] - bg;            \
-            if (!(z > 0.0f)) z = 0.0f;                                              \
-            const double dx = (double)(x0 + c) - mx, dy = (double)(y0 + r) - my;    \
+            if (clip_neg && z < 0.0f) z = 0.0f;                                     \
+            const double dx = (double)(x0 + c) - cx, dy = (double)(y0 + r) - cy;    \
             if (ia * dx * dx + ic * dy * dy - 2.0 * ib * dy * dx <= 1.0) {          \
                 e_sum += (double)z; e_cnt += 1.0;                                   \
             }                                                                       \
@@ -151,15 +236,13 @@ extern "C" __global__ void NAME(                                                
         e_sum = block_sum(e_sum, sh);                                               \
         e_cnt = block_sum(e_cnt, sh);                                               \
     }                                                                               \
-                                                                                    \
     if (t != 0) return;                                                             \
-    const int col = nearest_index(mx - (double)x0, cw);                             \
-    const int row = nearest_index(my - (double)y0, ch);                             \
+    const int col = nearest_index(cx - (double)x0, cw);                             \
+    const int row = nearest_index(cy - (double)y0, ch);                             \
     float zc = (float)img[(long long)(y0 + row) * W + x0 + col] - bg;               \
-    if (!(zc > 0.0f)) zc = 0.0f;                                                    \
+    if (clip_neg && zc < 0.0f) zc = 0.0f;                                           \
     const double I0 = (double)zc;                                                   \
-    const double I0w = (det > 0.0 && e_cnt > 0.0)                                   \
-        ? e_sum / (e_cnt * %(i0w_norm).17g) : I0;                                   \
+    const double I0w = (det > 0.0 && e_cnt > 0.0) ? e_sum / (e_cnt * I0W_NORM) : I0; \
                                                                                     \
     const double half_tr = 0.5 * (cxx + cyy);                                       \
     double disc = 0.25 * (cxx - cyy) * (cxx - cyy) + cxy * cxy;                     \
@@ -167,10 +250,10 @@ extern "C" __global__ void NAME(                                                
     const double l_max = half_tr + disc, l_min = half_tr - disc;                    \
     double vx = cxy, vy = l_max - cxx;                                              \
     const double vn = sqrt(vx * vx + vy * vy);                                      \
-    if (vn < 1e-12) { vx = 1.0; vy = 0.0; } else { vx /= vn; vy /= vn; }            \
+    if (vn < EPSV) { vx = 1.0; vy = 0.0; } else { vx /= vn; vy /= vn; }             \
                                                                                     \
-    out[b * 9 + 0] = mx;                                                            \
-    out[b * 9 + 1] = my;                                                            \
+    out[b * 9 + 0] = cx;                                                            \
+    out[b * 9 + 1] = cy;                                                            \
     out[b * 9 + 2] = sqrt(l_max > 0.0 ? 4.0 * l_max : 0.0);                         \
     out[b * 9 + 3] = sqrt(l_min > 0.0 ? 4.0 * l_min : 0.0);                         \
     out[b * 9 + 4] = vx;                                                            \
@@ -213,10 +296,14 @@ def _do_probe():
 
         if cupy.cuda.runtime.getDeviceCount() < 1:
             raise RuntimeError("no CUDA device")
+        from .fit import _EPS, _I0W_NORM, _QUAD_MAX  # noqa: PLC0415
+
         source = _KERNEL_SOURCE % {
             "block": BLOCK,
             "max_border": 4 * MAX_CROP,
-            "i0w_norm": 2 * (1 - np.exp(-0.5)),
+            "i0w_norm": _I0W_NORM,
+            "quad_max": _QUAD_MAX,
+            "eps": _EPS,
         }
         # no --use_fast_math: the fit must stay bit-comparable to the CPU path
         module = cupy.RawModule(code=source)
@@ -250,31 +337,41 @@ def _forced() -> bool:
     return _env("BEAM_PROFILER_GPU") in ("1", "on", "yes", "force", "true")
 
 
-def fit_batch(img, x0, y0, cw, ch):
-    """Fit all crops in one kernel launch.
+def fit_batch(img, x, y, r, cap, cfg):
+    """Run every crop stage and adaptive iteration in one kernel launch.
 
     Returns (indices that produced a fit, SpotArray) or None when the GPU path
     does not apply, in which case the caller uses numpy."""
     global _last_backend
     _last_backend = "cpu"
-    n = len(x0)
-    if n < MIN_SPOTS and not _forced():
+    n = len(x)
+    if not cfg.gpu_enabled and not _forced():
+        return None
+    if n < cfg.gpu_min_spots and not _forced():
+        return None
+    if cfg.max_crop > MAX_CROP:  # the kernel would clamp differently than numpy
         return None
     cp = _probe()
     if not cp:
         return None
     entry = _ENTRY.get(img.dtype)
-    if entry is None or int(cw.max()) > MAX_CROP or int(ch.max()) > MAX_CROP:
+    if entry is None:
         return None
     try:
         frame = _upload(cp, img)
-        d_out = cp.empty((n, 9), dtype=cp.float64)
-        d_out[:, 8] = 0.0
+        d_out = cp.zeros((n, 9), dtype=cp.float64)
+        half = np.minimum(cfg.seed_window * r, cap)
+        d = lambda v: cp.asarray(np.ascontiguousarray(v, dtype=np.float64))  # noqa: E731
+        H, W = img.shape
         _kernels[entry](
             (n,), (BLOCK,),
-            (frame, np.int32(img.shape[1]),
-             cp.asarray(x0, dtype=cp.int64), cp.asarray(y0, dtype=cp.int64),
-             cp.asarray(cw, dtype=cp.int32), cp.asarray(ch, dtype=cp.int32),
+            (frame, np.int32(W), np.int32(H),
+             d(x), d(y), d(half), d(half),
+             d(np.where(np.isfinite(cap), cap, 1e18)),
+             np.float64(cfg.crop_sigma), np.int32(cfg.crop_stages),
+             np.int32(cfg.adaptive_iters), np.int32(max(1, cfg.crop_quantum)),
+             np.int32(cfg.min_crop), np.int32(cfg.max_crop),
+             np.int32(bool(cfg.subtract_background)), np.int32(bool(cfg.clip_negative)),
              d_out, np.int32(n)),
         )
         out = cp.asnumpy(d_out)

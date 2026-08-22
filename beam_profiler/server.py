@@ -5,11 +5,13 @@ Endpoints are documented in docs/web_api.md and listed on the index page."""
 from __future__ import annotations
 
 import time
+from dataclasses import asdict
 from io import BytesIO
 
 import cv2
 from flask import Flask, jsonify, request, send_file
 
+from . import fitconfig
 from .processing import crop_rect, region_stats
 from .status import viewer_status
 
@@ -18,6 +20,8 @@ ENDPOINTS = [
     ("GET", "/api/rect_stats", "Pixel statistics of the white rectangle."),
     ("GET", "/api/fit_rect_stats", "Pixel statistics of the green fitting rectangle."),
     ("GET", "/api/spots", "Detected spots and their statistics."),
+    ("GET", "/api/fit_config", "Current spot-fitting parameters."),
+    ("PUT", "/api/fit_config", "Update spot-fitting parameters (JSON body)."),
     ("GET", "/api/image", "Current frame as JPEG."),
     ("GET", "/api/image_within_rect", "Current frame cropped to the white rectangle, as JPEG."),
     ("POST", "/api/set_rect", 'Set the white rectangle. JSON: {"coords": [x1, y1, x2, y2]}.'),
@@ -88,6 +92,21 @@ def create_app(viewer) -> Flask:
                 "spot_count": len(spots),
                 "stats": viewer.latest_stats,
                 "timestamp": time.time(),
+            }
+        )
+
+    @app.route("/api/fit_config", methods=["GET", "PUT"])
+    def fit_config():
+        if request.method == "PUT":
+            body = request.get_json(silent=True) or {}
+            unknown = set(body) - {s.name for s in fitconfig.SETTINGS}
+            if unknown:
+                return jsonify({"error": f"unknown settings: {sorted(unknown)}"}), 400
+            fitconfig.set_active(fitconfig.active().replace(**body))
+        return jsonify(
+            {
+                "config": asdict(fitconfig.active()),
+                "settings": [asdict(s) for s in fitconfig.SETTINGS],
             }
         )
 

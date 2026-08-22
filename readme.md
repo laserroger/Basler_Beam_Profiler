@@ -101,9 +101,24 @@ next to the executable.
 - `s`: quick save the current frame (JPEG + raw `.npy`)
 - `d`: save the current frame with dialogue box, allowing the user to choose the file location and name
 - `t`: switch to the next camera (if multiple cameras are connected)
+- `o`: open the spot-fitting settings window (crop size, re-crop stages, adaptive weighting, GPU backend)
 - `w`: toggle the HTTP server (port 5000), together with the live pixel statistics of the white rectangle drawn on the canvas
 - `y`: toggle the user-defined line output (Line3) used to sync external hardware
 - `mouse wheel`: zoom in/out the canvas (`ctrl + wheel`: change aspect ratio)
+
+## Spot fitting settings
+
+Press `o` for a settings window covering every parameter of the fit: the crop
+size, how many times the crop is re-derived from the fitted width, whether to
+use adaptive Gaussian weighting, and the CUDA backend. Changes take effect on
+the next frame and persist to `fit_config.json` next to the app; the same
+values are readable and writable over HTTP at `/api/fit_config`.
+
+Each control explains itself in the help pane. The defaults are measured
+optima rather than guesses. [`docs/fitting.md`](docs/fitting.md) walks through
+the fitting method step by step, and
+[`docs/fitting-calibration.md`](docs/fitting-calibration.md) records the sweeps
+behind each default - the test suite re-runs those measurements.
 
 ## Remote control / readout
 

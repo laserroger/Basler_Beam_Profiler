@@ -21,10 +21,11 @@ from ..config import (
     WEB_SERVER_PORT,
     WINDOW_SIZE,
 )
+from .. import fitconfig
 from ..processing import SpotArray, classify_grid, detect_spots, gpu, region_stats
 from ..roi import ROIModel, ViewTransform
 from ..status import write_status
-from . import overlays
+from . import overlays, settings
 
 WINDOW = "Basler"
 
@@ -201,6 +202,7 @@ class Viewer:
             f"Rect: {self.rect_sensor}, W = {rect_w:.1f} um, H = {rect_h:.1f} um",
             f"Fitting: {self.do_fitting} ({gpu.backend_name()}), Stats: {self.show_stats}, "
             f"Row-Col: {self.row_col_fitting}",
+            f"Fit: {fitconfig.describe()} (Press 'o' for settings)",
             f"Web Server: {'ON' if self.web_server_enabled else 'OFF'}, "
             f"Rect Stats: {'ON' if self.show_rect_stats else 'OFF'} (Press 'w' to toggle)",
             f"exposure_sync: {self.camera.userdefined_line_enabled} (Press 'y' to toggle)",
@@ -352,6 +354,8 @@ class Viewer:
             self._switch_camera()
         elif key == ord("w"):
             self._toggle_web_server()
+        elif key == ord("o"):
+            settings.open_settings()
         elif key == ord("y"):
             self.camera.set_userdefined_line(not self.camera.userdefined_line_enabled)
             logging.info(

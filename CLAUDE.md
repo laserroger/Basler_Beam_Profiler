@@ -52,10 +52,14 @@ compatibility shim for run.sh/PyInstaller.
   `basler.py` (pypylon) and `simulated.py` implement it. `open_cameras()`
   does discovery + sim fallback. Anything testable without hardware must not
   import pypylon at module level.
+- `fitconfig.py` — every tunable of the fit, its range and its help text, in
+  one registry. `ui/settings.py` builds the settings window from it, the HTTP
+  API exposes it, and it persists to `fit_config.json`. Add a knob here and it
+  appears everywhere; do not put fit constants anywhere else.
 - `processing/` — pure CV, no camera/UI dependencies: `blobs.py` (detection:
-  blob search on a ≤1024 px downscale), `fit.py` (sub-pixel Gaussian *moment*
-  fits on full-resolution crops with local background subtraction, batched
-  over all candidates), `gpu.py` (optional CuPy backend for that batch),
+  blob search on a ≤1024 px downscale), `fit.py` (sub-pixel *moment* fits on
+  full-resolution crops with local background subtraction, batched over all
+  candidates), `gpu.py` (optional CuPy backend for that batch),
   `spots.py` (`SpotArray`, the columnar result container), `grid.py`
   (row/column classification), `stats.py` (rectangle pixel stats — the single
   source used by both UI and HTTP server).
@@ -81,17 +85,31 @@ compatibility shim for run.sh/PyInstaller.
   `s["x"]` code works, but anything per-frame must use the columns
   (`spots.x`, `spots.sigma_0`, …) or the win is thrown away. `to_json()` is
   called by `server.py` on request, never in the main loop.
-- **The fit is batched, and optionally on the GPU.** `fit.fit_spots` gathers
-  every crop into one tensor; with CuPy present and ≥`gpu.MIN_SPOTS` (400)
-  candidates it runs one fused CUDA kernel instead (~18x faster end-to-end on
-  an 80x80 array). Both paths must stay numerically identical to the per-spot
-  `fit.fit_spot` reference — `tests/test_processing.py` asserts this to 1e-9,
-  so any change to one path must be mirrored in the other (and in the kernel
-  in `gpu.py`). `BEAM_PROFILER_GPU=0` forces the CPU path, `=force` uses the
-  GPU below the threshold; the HUD shows which one ran.
-- Crops wider than `fit.COARSE_MAX` (80 px) still go through the per-spot
-  path, which coarse-grains them — the batch/kernel paths only handle small
-  crops.
+- **The crop is derived from the spot, not from the detector.** The blob
+  radius is only a seed: `fit_spots` re-crops at `crop_sigma` x the fitted
+  sigma (per axis) and refits, `crop_stages` times. The blob radius spans
+  `r/sigma` = 0.75-1.7 depending on brightness, so using it directly made
+  widths brightness-dependent (up to 30% error). A stage whose crop did not
+  move is skipped — the fit depends only on the crop.
+- **Never clip the crop at zero.** Clipping rectifies zero-mean noise into a
+  positive pedestal that the second moment multiplies by distance^2; the error
+  grows like L^4 and converges on the width of the *crop*. `clip_negative`
+  exists only to reproduce pre-2026 numbers. A Gaussian weight
+  (`adaptive_iters` > 0) suppresses the same noise without biasing it, because
+  it is linear in the pixel value. See `docs/fitting-calibration.md`.
+- **Three implementations of one estimator.** `fit.fit_spot` (scalar
+  reference), `fit.fit_spots` (numpy, batched) and the fused kernel in
+  `gpu.py` must agree to 1e-9 — `tests/test_processing.py` checks this over
+  five configurations, so a change to one must be mirrored in all three. The
+  kernel runs every stage and every adaptive iteration in a *single* launch,
+  each block resizing its own crop.
+- The fit defaults are measured optima and `tests/test_fit_config.py` re-runs
+  the measurements. If one fails, change the default and
+  `docs/fitting-calibration.md` — do not loosen the test.
+- `BEAM_PROFILER_GPU=0` forces the CPU path, `=force` uses the GPU below the
+  spot-count threshold; otherwise `gpu_enabled`/`gpu_min_spots` decide. The
+  HUD shows which path actually ran. `max_crop` above `gpu.MAX_CROP` (512)
+  silently moves everything to the CPU.
 - CV changes must keep `tests/` passing — they check detection count,
   sub-pixel position error, widths, orientation and grid classification
   against synthetic ground truth.

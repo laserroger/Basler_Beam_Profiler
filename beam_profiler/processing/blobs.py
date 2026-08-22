@@ -35,7 +35,7 @@ def _make_detector() -> cv2.SimpleBlobDetector:
 _DETECTOR = _make_detector()
 
 
-def detect_spots(img: np.ndarray, max_side: int = DETECT_MAX_SIDE) -> SpotArray:
+def detect_spots(img: np.ndarray, max_side: int = DETECT_MAX_SIDE, cfg=None) -> SpotArray:
     """Detect Gaussian-like spots in a mono frame (uint8 or uint16).
 
     Returns a SpotArray with columns x, y (ROI pixel coords, sub-pixel),
@@ -50,7 +50,7 @@ def detect_spots(img: np.ndarray, max_side: int = DETECT_MAX_SIDE) -> SpotArray:
     pts = np.array([(kp.pt[0], kp.pt[1], kp.size) for kp in keypoints], dtype=np.float64)
     x, y = pts[:, 0] / scale, pts[:, 1] / scale
     radius = np.maximum(pts[:, 2] / (2 * scale), 2.0)
-    return fit_spots(img, x, y, radius)
+    return fit_spots(img, x, y, radius, cfg)
 
 
 def candidate_mask(img: np.ndarray, max_side: int = DETECT_MAX_SIDE):
