@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from .spots import SpotArray
+
 
 def _cluster_1d(values: np.ndarray, eps: float | None, min_samples: int) -> list[np.ndarray]:
     """Group indices of `values` by splitting sorted values at large gaps.
@@ -29,25 +31,20 @@ def _cluster_1d(values: np.ndarray, eps: float | None, min_samples: int) -> list
     return groups
 
 
-def classify_grid(spots: list[dict], eps: float | None = None, min_samples: int = 2):
+def classify_grid(spots, eps: float | None = None, min_samples: int = 2):
     """Split spots into rows (clustered by y) and columns (clustered by x).
 
-    Returns (rows, columns, stats) where stats holds per-row spacing/straightness
-    figures (mean_dx, std_x, std_y for rows; mean_dy, std_y, std_x for columns)
-    plus their averages under avg_* keys.  All distances are in pixels."""
-    if not spots:
+    Returns (rows, columns, stats): rows/columns are SpotArrays sorted along
+    their long axis, stats holds per-row spacing/straightness figures (mean_dx,
+    std_x, std_y for rows; mean_dy, std_y, std_x for columns) plus their
+    averages under avg_* keys.  All distances are in pixels."""
+    if not isinstance(spots, SpotArray):
+        spots = SpotArray.from_dicts(spots)
+    if len(spots) == 0:
         return [], [], {}
 
-    xs = np.array([s["x"] for s in spots])
-    ys = np.array([s["y"] for s in spots])
-    columns = [
-        sorted((spots[i] for i in g), key=lambda s: s["y"])
-        for g in _cluster_1d(xs, eps, min_samples)
-    ]
-    rows = [
-        sorted((spots[i] for i in g), key=lambda s: s["x"])
-        for g in _cluster_1d(ys, eps, min_samples)
-    ]
+    columns = [spots[g].sorted_by("y") for g in _cluster_1d(spots.x, eps, min_samples)]
+    rows = [spots[g].sorted_by("x") for g in _cluster_1d(spots.y, eps, min_samples)]
 
     stats = {
         "rows": {"mean_dx": [], "std_x": [], "std_y": []},
@@ -55,18 +52,16 @@ def classify_grid(spots: list[dict], eps: float | None = None, min_samples: int 
     }
     for row in rows:
         if len(row) >= 2:
-            rx = np.sort([s["x"] for s in row])
-            dxs = np.diff(rx)
+            dxs = np.diff(np.sort(row.x))
             stats["rows"]["mean_dx"].append(float(dxs.mean()))
             stats["rows"]["std_x"].append(float(dxs.std()))
-            stats["rows"]["std_y"].append(float(np.std([s["y"] for s in row])))
+            stats["rows"]["std_y"].append(float(np.std(row.y)))
     for col in columns:
         if len(col) >= 2:
-            cy = np.sort([s["y"] for s in col])
-            dys = np.diff(cy)
+            dys = np.diff(np.sort(col.y))
             stats["columns"]["mean_dy"].append(float(dys.mean()))
             stats["columns"]["std_y"].append(float(dys.std()))
-            stats["columns"]["std_x"].append(float(np.std([s["x"] for s in col])))
+            stats["columns"]["std_x"].append(float(np.std(col.x)))
 
     for axis, keys in (
         ("rows", ("mean_dx", "std_x", "std_y")),

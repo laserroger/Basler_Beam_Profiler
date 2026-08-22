@@ -81,10 +81,11 @@ def create_app(viewer) -> Flask:
 
     @app.route("/api/spots")
     def get_spots():
-        return jsonify(
+        spots = viewer.latest_spots  # SpotArray; serialised here so the main
+        return jsonify(  # loop never pays for it when nobody is polling
             {
-                "spots": viewer.latest_spots,
-                "spot_count": len(viewer.latest_spots),
+                "spots": spots.to_json(),
+                "spot_count": len(spots),
                 "stats": viewer.latest_stats,
                 "timestamp": time.time(),
             }

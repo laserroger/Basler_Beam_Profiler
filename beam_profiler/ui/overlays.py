@@ -5,6 +5,7 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
+from ..processing.spots import SpotArray
 from ..roi import ViewTransform
 
 FONT = cv2.FONT_HERSHEY_SIMPLEX
@@ -136,30 +137,40 @@ def draw_spots(img, spots, view: ViewTransform, pixel_size: float, min_label_rad
     text stay the same size at every zoom level.  Labels are skipped for spots
     too small on screen to keep dense arrays readable."""
     BGR_GREEN, BGR_RED, BGR_BLUE = (0, 255, 0), (255, 0, 0), (0, 0, 255)
-    for s in spots:
-        cx, cy = view.roi_to_display(s["x"], s["y"])
-        a0 = s["sigma_0"] * view.scale
-        a1 = s["sigma_1"] * view.scale
-        angle = np.degrees(np.arctan2(s["vec_0"][1], s["vec_0"][0]))
+    if not isinstance(spots, SpotArray):
+        spots = SpotArray.from_dicts(spots)
+    # the per-spot geometry is computed for the whole array up front; only the
+    # cv2 draw calls have to happen one spot at a time
+    cx, cy = view.roi_to_display_many(spots.x, spots.y)
+    a0, a1 = spots.sigma_0 * view.scale, spots.sigma_1 * view.scale
+    angle = spots.angle
+    axis0 = np.maximum(1, np.round(a0).astype(np.int32))
+    axis1 = np.maximum(1, np.round(a1).astype(np.int32))
+    labelled = a0 >= min_label_radius
+    rad = np.radians(angle)
+    major = (np.round(cx + a0 * np.cos(rad)).astype(np.int32),
+             np.round(cy + a0 * np.sin(rad)).astype(np.int32))
+    minor = (np.round(cx + a1 * np.cos(rad + np.pi / 2)).astype(np.int32),
+             np.round(cy + a1 * np.sin(rad + np.pi / 2)).astype(np.int32))
+    ty = cy + np.sqrt(a0 * a1).astype(np.int32) + 24
+    um = pixel_size * 1e6
+    for i in range(len(spots)):
+        centre = (int(cx[i]), int(cy[i]))
         cv2.ellipse(
-            img, (cx, cy), (max(1, int(round(a0))), max(1, int(round(a1)))),
-            angle, 0, 360, BGR_GREEN, 2,
+            img, centre, (int(axis0[i]), int(axis1[i])),
+            float(angle[i]), 0, 360, BGR_GREEN, 2,
         )
-        if a0 < min_label_radius:
+        if not labelled[i]:
             continue
-        a = np.radians(angle)
-        p_major = (int(round(cx + a0 * np.cos(a))), int(round(cy + a0 * np.sin(a))))
-        p_minor = (
-            int(round(cx + a1 * np.cos(a + np.pi / 2))),
-            int(round(cy + a1 * np.sin(a + np.pi / 2))),
-        )
-        cv2.line(img, (cx, cy), p_major, BGR_RED, 2)
-        cv2.line(img, (cx, cy), p_minor, BGR_BLUE, 2)
-        um = pixel_size * 1e6
-        ty = cy + int(np.sqrt(a0 * a1)) + 24
-        text(img, f"({s['x']:.0f}, {s['y']:.0f})", (cx, ty), BGR_GREEN, scale=0.5, thickness=1)
-        text(img, f"s0={s['sigma_0'] * um:.1f} um", (cx, ty + 18), BGR_GREEN, scale=0.5, thickness=1)
-        text(img, f"s1={s['sigma_1'] * um:.1f} um", (cx, ty + 36), BGR_GREEN, scale=0.5, thickness=1)
+        cv2.line(img, centre, (int(major[0][i]), int(major[1][i])), BGR_RED, 2)
+        cv2.line(img, centre, (int(minor[0][i]), int(minor[1][i])), BGR_BLUE, 2)
+        label_y = int(ty[i])
+        text(img, f"({spots.x[i]:.0f}, {spots.y[i]:.0f})", (centre[0], label_y),
+             BGR_GREEN, scale=0.5, thickness=1)
+        text(img, f"s0={spots.sigma_0[i] * um:.1f} um", (centre[0], label_y + 18),
+             BGR_GREEN, scale=0.5, thickness=1)
+        text(img, f"s1={spots.sigma_1[i] * um:.1f} um", (centre[0], label_y + 36),
+             BGR_GREEN, scale=0.5, thickness=1)
 
 
 def _hue_color(i: int, saturation: int) -> list:
@@ -192,24 +203,20 @@ def draw_row_col(img, view: ViewTransform, rows, columns):
         if len(row) < 2:
             continue
         color = _hue_color(i, saturation=255)
-        mean_y = float(np.mean([s["y"] for s in row]))
-        xs = [s["x"] for s in row]
-        p1 = view.roi_to_display(min(xs), mean_y)
-        p2 = view.roi_to_display(max(xs), mean_y)
+        mean_y = float(np.mean(row.y))
+        p1 = view.roi_to_display(float(row.x.min()), mean_y)
+        p2 = view.roi_to_display(float(row.x.max()), mean_y)
         cv2.line(img, p1, p2, color, 2, cv2.LINE_AA)
-        for s in row:
-            cv2.circle(img, view.roi_to_display(s["x"], s["y"]), 5, color, 2)
+        for px, py in zip(*view.roi_to_display_many(row.x, row.y)):
+            cv2.circle(img, (int(px), int(py)), 5, color, 2)
 
     for i, col in enumerate(columns):
         if len(col) < 2:
             continue
         color = _hue_color(i, saturation=180)
-        mean_x = float(np.mean([s["x"] for s in col]))
-        ys = [s["y"] for s in col]
-        p1 = view.roi_to_display(mean_x, min(ys))
-        p2 = view.roi_to_display(mean_x, max(ys))
+        mean_x = float(np.mean(col.x))
+        p1 = view.roi_to_display(mean_x, float(col.y.min()))
+        p2 = view.roi_to_display(mean_x, float(col.y.max()))
         _dashed_line(img, p1, p2, color)
-        for s in col:
-            cv2.drawMarker(
-                img, view.roi_to_display(s["x"], s["y"]), color, cv2.MARKER_SQUARE, 10, 2
-            )
+        for px, py in zip(*view.roi_to_display_many(col.x, col.y)):
+            cv2.drawMarker(img, (int(px), int(py)), color, cv2.MARKER_SQUARE, 10, 2)

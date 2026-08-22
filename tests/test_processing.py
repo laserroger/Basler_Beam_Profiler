@@ -3,7 +3,16 @@
 import numpy as np
 import pytest
 
-from beam_profiler.processing import classify_grid, detect_spots, region_stats
+from beam_profiler.processing import (
+    SpotArray,
+    classify_grid,
+    detect_spots,
+    fit_spot,
+    fit_spots,
+    gpu,
+    region_stats,
+)
+from beam_profiler.processing.blobs import _DETECTOR, candidate_mask
 from beam_profiler.synthetic import Spot, render, spot_grid
 
 
@@ -62,7 +71,7 @@ def test_grid_detection_and_classification():
 
 def test_empty_frame_yields_no_spots():
     img = render(800, 800, [], noise=0.003, rng=np.random.default_rng(4))
-    assert detect_spots(img) == []
+    assert len(detect_spots(img)) == 0
 
 
 def test_region_stats():
@@ -97,3 +106,78 @@ def test_simulated_camera_pipeline():
     lo.ExposureTime = 400
     bright = lo.grab_image().max()
     assert bright > dim
+
+
+# --------------------------------------------------------------------------- #
+#  batched fit: must stay numerically identical to the per-spot reference
+# --------------------------------------------------------------------------- #
+def _candidates(img):
+    """Blob-detector output, i.e. exactly what the fit is handed."""
+    mask, scale = candidate_mask(img)
+    keypoints = _DETECTOR.detect(mask)
+    pts = np.array([(k.pt[0], k.pt[1], k.size) for k in keypoints])
+    return pts[:, 0] / scale, pts[:, 1] / scale, np.maximum(pts[:, 2] / (2 * scale), 2.0)
+
+
+def _dense_frame():
+    truth = spot_grid(1200, 1200, 12, 12, sigma=4.0)
+    return render(1200, 1200, truth, rng=np.random.default_rng(5)), truth
+
+
+def _assert_same_fits(reference, batched):
+    assert len(reference) == len(batched)
+    peak = max(s["I0"] for s in reference)
+    for a, b in zip(reference, batched):
+        assert b["x"] == pytest.approx(a["x"], abs=1e-9)
+        assert b["y"] == pytest.approx(a["y"], abs=1e-9)
+        assert b["sigma_0"] == pytest.approx(a["sigma_0"], abs=1e-9)
+        assert b["sigma_1"] == pytest.approx(a["sigma_1"], abs=1e-9)
+        assert b["I0"] == pytest.approx(a["I0"], abs=1e-9)
+        assert b["I0_weighted"] == pytest.approx(a["I0_weighted"], abs=1e-6 * peak)
+        # principal axis up to sign
+        assert abs(abs(float(np.dot(a["vec_0"], b["vec_0"]))) - 1.0) < 1e-9
+
+
+def test_batched_fit_matches_per_spot_fit(monkeypatch):
+    monkeypatch.setattr(gpu, "MIN_SPOTS", 10**9)  # force the numpy path
+    img, truth = _dense_frame()
+    x, y, r = _candidates(img)
+    assert len(x) == len(truth)
+    reference = [fit_spot(img, *c) for c in zip(x, y, r)]
+    _assert_same_fits(reference, fit_spots(img, x, y, r))
+
+
+@pytest.mark.skipif(not gpu.available(), reason="no CUDA device / CuPy")
+def test_cuda_fit_matches_per_spot_fit(monkeypatch):
+    monkeypatch.setattr(gpu, "MIN_SPOTS", 0)  # force the GPU path
+    img, _ = _dense_frame()
+    x, y, r = _candidates(img)
+    reference = [fit_spot(img, *c) for c in zip(x, y, r)]
+    _assert_same_fits(reference, fit_spots(img, x, y, r))
+
+
+def test_oversized_crops_fall_back_to_the_coarse_grained_fit(monkeypatch):
+    """Spots wider than the batch limit still get the resize-based fit."""
+    monkeypatch.setattr(gpu, "MIN_SPOTS", 10**9)
+    truth = [Spot(300, 300, sigma_x=60.0, amplitude=0.8), Spot(900, 900, sigma_x=6.0)]
+    img = render(1200, 1200, truth, rng=np.random.default_rng(6))
+    x, y, r = _candidates(img)
+    spots = fit_spots(img, x, y, r)
+    assert len(spots) == 2
+    _match(spots, truth, tol=2.0)
+
+
+def test_spot_array_views():
+    img, truth = _dense_frame()
+    spots = detect_spots(img)
+    assert isinstance(spots, SpotArray)
+    assert len(spots) == len(truth)
+    assert spots.sigma[0] == pytest.approx(np.sqrt(spots.sigma_0[0] * spots.sigma_1[0]))
+    # dict view stays compatible with the pre-columnar API
+    assert set(spots[0]) == {"x", "y", "sigma_0", "sigma_1", "sigma", "vec_0", "vec_1",
+                             "I0", "I0_weighted"}
+    assert spots[0]["x"] == spots.x[0]
+    subset = spots[spots.x < 600]
+    assert len(subset) < len(spots) and np.all(subset.x < 600)
+    assert len(spots.to_json()) == len(spots)
+    assert spots.to_json()[0]["vec_0"] == list(spots.vec_0[0])

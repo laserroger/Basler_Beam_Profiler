@@ -21,7 +21,7 @@ from ..config import (
     WEB_SERVER_PORT,
     WINDOW_SIZE,
 )
-from ..processing import classify_grid, detect_spots, region_stats
+from ..processing import SpotArray, classify_grid, detect_spots, gpu, region_stats
 from ..roi import ROIModel, ViewTransform
 from ..status import write_status
 from . import overlays
@@ -35,13 +35,6 @@ KEY_FACTORS = {
     2490368: 10, 65362: 10,  # up:    x10
     2621440: 0.1, 65364: 0.1,  # down:  /10
 }
-
-
-def _json_safe(spot: dict) -> dict:
-    return {
-        k: v.tolist() if isinstance(v, np.ndarray) else float(v)
-        for k, v in spot.items()
-    }
 
 
 class Viewer:
@@ -71,7 +64,7 @@ class Viewer:
 
         # shared with the HTTP server
         self.current_frame = None
-        self.latest_spots: list[dict] = []
+        self.latest_spots = SpotArray.empty()
         self.latest_stats: dict = {}
         self.current_rect_stats = None
         self.web_server_enabled = False
@@ -80,6 +73,7 @@ class Viewer:
 
         # WINDOW_GUI_NORMAL drops the Qt toolbar and the pixel-hover overlay,
         # which render as black/garbled boxes (OpenCV's bundled Qt has no fonts)
+        gpu.warm_up()  # pay the CuPy import off the critical path
         cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL | cv2.WINDOW_GUI_NORMAL)
         cv2.resizeWindow(WINDOW, WINDOW_SIZE, WINDOW_SIZE)
         cv2.setMouseCallback(WINDOW, self.on_mouse)
@@ -124,8 +118,8 @@ class Viewer:
                 else None
             )
 
-            spots = self._detect(frame) if self.do_fitting else []
-            self.latest_spots = [_json_safe(s) for s in spots]
+            spots = self._detect(frame) if self.do_fitting else SpotArray.empty()
+            self.latest_spots = spots  # columnar; server.py serialises on request
             self._update_spot_stats(spots)
             if self.web_server_enabled:
                 self._update_web_stats()
@@ -139,13 +133,14 @@ class Viewer:
         self.camera.close()
         cv2.destroyAllWindows()
 
-    def _detect(self, frame) -> list[dict]:
+    def _detect(self, frame) -> SpotArray:
         spots = detect_spots(frame)
-        if self.fit_rect_sensor is None:
+        if self.fit_rect_sensor is None or not len(spots):
             return spots
         _, _, ox, oy = self.camera.ROI
         x1, y1, x2, y2 = self.fit_rect_sensor
-        return [s for s in spots if x1 <= ox + s["x"] <= x2 and y1 <= oy + s["y"] <= y2]
+        sx, sy = ox + spots.x, oy + spots.y
+        return spots[(sx >= x1) & (sx <= x2) & (sy >= y1) & (sy <= y2)]
 
     def _compose(self, frame_disp, spots) -> np.ndarray:
         """Resize + pad the frame to the window and draw all overlays.
@@ -164,7 +159,7 @@ class Viewer:
             value=PAD_COLOR[0],
         )
         disp = cv2.cvtColor(padded, cv2.COLOR_GRAY2RGB)
-        if spots and not self.row_col_fitting:
+        if len(spots) and not self.row_col_fitting:
             overlays.draw_spots(disp, spots, view, self.camera.pixel_size)
 
         y = overlays.draw_hud(disp, self._hud_lines())
@@ -204,7 +199,8 @@ class Viewer:
             f"ROI: {self.camera.ROI}  Mouse: {self.last_mouse}",
             f"Exposure: {exposure_txt} us",
             f"Rect: {self.rect_sensor}, W = {rect_w:.1f} um, H = {rect_h:.1f} um",
-            f"Fitting: {self.do_fitting}, Stats: {self.show_stats}, Row-Col: {self.row_col_fitting}",
+            f"Fitting: {self.do_fitting} ({gpu.backend_name()}), Stats: {self.show_stats}, "
+            f"Row-Col: {self.row_col_fitting}",
             f"Web Server: {'ON' if self.web_server_enabled else 'OFF'}, "
             f"Rect Stats: {'ON' if self.show_rect_stats else 'OFF'} (Press 'w' to toggle)",
             f"exposure_sync: {self.camera.userdefined_line_enabled} (Press 'y' to toggle)",
@@ -228,14 +224,12 @@ class Viewer:
         self.stats_dx = self.stats_dy = self.stats_sigma = np.array([0.0])
         self.rows, self.columns, self.grid_stats = [], [], {}
 
-    def _update_spot_stats(self, spots: list[dict]):
+    def _update_spot_stats(self, spots: SpotArray):
         if len(spots) > 1:
-            order = np.argsort([s["x"] for s in spots])
-            xs = np.array([s["x"] for s in spots])[order]
-            ys = np.array([s["y"] for s in spots])[order]
-            self.stats_dx = np.diff(xs)
-            self.stats_dy = np.diff(ys)
-            self.stats_sigma = np.array([np.sqrt(s["sigma_0"] * s["sigma_1"]) for s in spots])
+            order = np.argsort(spots.x)
+            self.stats_dx = np.diff(spots.x[order])
+            self.stats_dy = np.diff(spots.y[order])
+            self.stats_sigma = spots.sigma
             self.rows, self.columns, self.grid_stats = classify_grid(spots, eps=20)
         else:
             self._reset_spot_stats()

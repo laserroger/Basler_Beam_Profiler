@@ -1,9 +1,13 @@
 opencv-python
-PyQt5
 pypylon
-pyinstaller
 numpy
-scipy
-matplotlib
 PyYAML
 Flask
+
+# exe builds only (see `compile` / .github/workflows/build.yml):
+# pip install pyinstaller
+
+# optional: GPU spot fitting (see beam_profiler/processing/gpu.py).
+# Install the wheel matching your CUDA toolkit, e.g. cupy-cuda12x.
+# Without it everything falls back to the (slower) numpy path.
+# cupy-cuda12x

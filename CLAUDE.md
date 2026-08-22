@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Setup on a new machine
 
 ```bash
-pip install -r requirements.txt        # needs Python 3.10+; pyinstaller only needed for exe builds
+pip install -r requirements.txt        # needs Python 3.10+
 python -m beam_profiler --sim          # verify everything works without hardware
 ```
 
@@ -35,7 +35,7 @@ path — adjust or ignore it on other PCs.
 python -m pytest tests/                              # run tests
 python -m pytest tests/test_processing.py -k grid    # single test
 python -m beam_profiler                              # run (hardware, sim fallback)
-pyinstaller --onefile pylon_camera.py                # Windows exe (see `compile`)
+./compile                                            # local exe (needs `pip install pyinstaller`)
 ```
 
 Work happens on the `dev` branch. CI (`.github/workflows/build.yml`) runs only
@@ -53,8 +53,10 @@ compatibility shim for run.sh/PyInstaller.
   does discovery + sim fallback. Anything testable without hardware must not
   import pypylon at module level.
 - `processing/` — pure CV, no camera/UI dependencies: `blobs.py` (detection:
-  blob search on a ≤1024 px downscale, then sub-pixel Gaussian *moment* fits
-  on full-resolution crops with local background subtraction), `grid.py`
+  blob search on a ≤1024 px downscale), `fit.py` (sub-pixel Gaussian *moment*
+  fits on full-resolution crops with local background subtraction, batched
+  over all candidates), `gpu.py` (optional CuPy backend for that batch),
+  `spots.py` (`SpotArray`, the columnar result container), `grid.py`
   (row/column classification), `stats.py` (rectangle pixel stats — the single
   source used by both UI and HTTP server).
 - `ui/viewer.py` — single-threaded main loop (grab → process → draw → keys);
@@ -73,6 +75,23 @@ compatibility shim for run.sh/PyInstaller.
 - "16Bit" mode is Mono12 wrapped MSB-aligned in uint16 (saturation 65535).
 - Keyboard codes in `viewer.KEY_FACTORS` must cover both Windows and Linux
   `waitKeyEx` values.
+- **Spots are columnar.** `detect_spots` returns a `SpotArray` (one numpy
+  array per quantity), not a list of dicts — building 6400 dicts costs more
+  than the fit does. Indexing/iterating still yields the old dicts, so legacy
+  `s["x"]` code works, but anything per-frame must use the columns
+  (`spots.x`, `spots.sigma_0`, …) or the win is thrown away. `to_json()` is
+  called by `server.py` on request, never in the main loop.
+- **The fit is batched, and optionally on the GPU.** `fit.fit_spots` gathers
+  every crop into one tensor; with CuPy present and ≥`gpu.MIN_SPOTS` (400)
+  candidates it runs one fused CUDA kernel instead (~18x faster end-to-end on
+  an 80x80 array). Both paths must stay numerically identical to the per-spot
+  `fit.fit_spot` reference — `tests/test_processing.py` asserts this to 1e-9,
+  so any change to one path must be mirrored in the other (and in the kernel
+  in `gpu.py`). `BEAM_PROFILER_GPU=0` forces the CPU path, `=force` uses the
+  GPU below the threshold; the HUD shows which one ran.
+- Crops wider than `fit.COARSE_MAX` (80 px) still go through the per-spot
+  path, which coarse-grains them — the batch/kernel paths only handle small
+  crops.
 - CV changes must keep `tests/` passing — they check detection count,
   sub-pixel position error, widths, orientation and grid classification
   against synthetic ground truth.

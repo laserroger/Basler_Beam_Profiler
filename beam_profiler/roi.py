@@ -96,3 +96,10 @@ class ViewTransform:
     def roi_to_display(self, x: float, y: float) -> tuple[int, int]:
         """ROI-relative pixel coords (e.g. spot fits) -> display coords."""
         return self.to_display(self.ox + x, self.oy + y)
+
+    def roi_to_display_many(self, x, y) -> tuple[np.ndarray, np.ndarray]:
+        """Vectorised `roi_to_display` for whole spot columns."""
+        return (
+            (np.asarray(x) * self.scale).astype(np.int32) + self.pad_l,
+            (np.asarray(y) * self.scale).astype(np.int32) + self.pad_t,
+        )
