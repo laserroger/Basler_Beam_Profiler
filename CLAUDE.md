@@ -5,15 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Setup on a new machine
 
 ```bash
-pip install -r requirements.txt        # needs Python 3.10+
+pip install -r requirements.txt        # Python 3.12 recommended; optional vendor SDKs
 python -m beam_profiler --sim          # verify everything works without hardware
 ```
 
-For real cameras, the Basler pylon SDK must be installed system-wide and the
-camera model must have an entry in `camera_config.yaml` (keyed by exact model
+For Basler cameras, install `requirements-basler.txt` and the pylon SDK.
+For FLIR cameras, install the matching Spinnaker/PySpin SDK (see `docs/macos.md`).
+The camera model must have an entry in `camera_config.yaml` (keyed by exact model
 name, e.g. `a2A5060-15umBAS`). With no camera connected, the app automatically
-falls back to the simulator. `run.sh` contains a machine-specific interpreter
-path — adjust or ignore it on other PCs.
+falls back to the simulator. `run.sh` prefers `.venv/bin/python`, then `$PYTHON` or `python3`.
+Use `--camera flir` or `--camera basler` to require hardware without fallback.
 
 ## Test signal / debugging without hardware
 
@@ -49,7 +50,7 @@ compatibility shim for run.sh/PyInstaller.
 
 - `cameras/` — `base.Camera` defines the interface (grab_image, ROI,
   ExposureTime, Gain properties) plus shared PID auto-exposure;
-  `basler.py` (pypylon) and `simulated.py` implement it. `open_cameras()`
+  `basler.py` (pypylon), `flir.py` (PySpin), and `simulated.py` implement it. `open_cameras()`
   does discovery + sim fallback. Anything testable without hardware must not
   import pypylon at module level.
 - `fitconfig.py` — every tunable of the fit, its range and its help text, in
@@ -77,7 +78,7 @@ compatibility shim for run.sh/PyInstaller.
 - Reported `sigma_0/sigma_1` are **2×** the Gaussian σ (≈ beam waist per
   axis); tests encode this (`sigma_0 ≈ 2 * true_sigma`).
 - "16Bit" mode is Mono12 wrapped MSB-aligned in uint16 (saturation 65535).
-- Keyboard codes in `viewer.KEY_FACTORS` must cover both Windows and Linux
+- Keyboard codes in `viewer.KEY_FACTORS` must cover Windows, Linux and macOS
   `waitKeyEx` values.
 - **Spots are columnar.** `detect_spots` returns a `SpotArray` (one numpy
   array per quantity), not a list of dicts — building 6400 dicts costs more

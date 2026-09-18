@@ -1,20 +1,9 @@
 # macOS + FLIR Blackfly S
 
-## This Mac: ready to launch
+## Launch after setup
 
-Double-click **Launch FLIR.command** in the repository folder. It selects FLIR
-explicitly: a missing/disconnected camera produces an error, never simulated data.
-Double-click **Launch Simulator.command** for synthetic beam arrays.
-
-The installed environment is native Apple Silicon Python 3.12.14 with Spinnaker
-4.4.0.246, taken from the SDK you downloaded. The Python environment (`.venv`),
-Python runtime (`.python`), and SDK libraries (`.vendor/spinnaker`) are local to
-this folder. Homebrew supplies libusb, libomp and FFmpeg 6 dependencies. Keep the
-folder in its current location: virtual environments contain absolute paths.
-The proprietary SDK is excluded from Git and the source archive.
-
-`run.sh` configures the local SDK library and GenTL transport paths automatically.
-No global shell-profile changes are required. If you prefer Terminal:
+Follow the installation steps below first. Then double-click **Launch FLIR.command**
+in the repository folder, or use Terminal:
 
 ```sh
 ./run.sh --camera flir
@@ -22,6 +11,16 @@ No global shell-profile changes are required. If you prefer Terminal:
 ./run.sh --sim --sim-grid 8x8
 ./run.sh --camera basler
 ```
+
+Explicit camera selection fails with an error if the camera or SDK is unavailable;
+only automatic discovery falls back to simulated data. **Launch Simulator.command**
+always uses synthetic beam arrays. `run.sh` uses `.venv/bin/python` when available,
+otherwise `$PYTHON` or `python3`.
+
+The proprietary Spinnaker SDK is not included. Standard SDK installations use the
+vendor's library and GenTL configuration. For a local SDK installation under
+`.vendor/spinnaker/lib`, `run.sh` sets the library search path and the transport
+path `spinnaker-gentl/Spinnaker_GenTL.cti` automatically.
 
 ## Controls and feature parity
 
@@ -60,7 +59,7 @@ exposure/gain commands. The upstream server binds all interfaces on port 5000.
 CUDA acceleration is unavailable on Apple Silicon; the same fitting calculations
 run on the CPU. No Metal acceleration is claimed.
 
-## Your BFS-U3-31S4M-C
+## BFS-U3-31S4M-C
 
 - Detected model string: `Blackfly S BFS-U3-31S4M`.
 - Full sensor: 2048 × 1536 pixels; pixel pitch: 3.45 µm.
@@ -92,11 +91,11 @@ Electrical polarity, timing, and external equipment synchronization have **not**
 been measured with a scope. The software user pulse spans acquisition/transfer;
 ExposureActive is the output corresponding to the actual sensor exposure window.
 
-## Recreate on another Mac
+## Installation
 
 Use Python **3.12**, a matching Mac architecture, and matching Spinnaker runtime
-and PySpin versions. The downloaded 4.4.0.246 installer includes the cp312 ARM64
-Python package, so a separate Python download was unnecessary on this Mac.
+and PySpin versions. The tested 4.4.0.246 installer includes the cp312 ARM64
+Python package. Install that wheel into the same environment as the profiler.
 
 1. Install the prerequisites listed by the SDK:
    `brew install pkg-config libomp libusb ffmpeg@6`.
@@ -120,9 +119,10 @@ for FLIR-only use and simulation.
 
 ## Verification
 
-Final test suite: **40 passed, 5 skipped** (CUDA-only tests skipped on this Mac).
+Validation used an Apple Silicon Mac running macOS 26.6.2, Python 3.12.14,
+OpenCV 5.0.0 and Spinnaker/PySpin 4.4.0.246. CUDA tests are skipped on this host.
 
-On this Mac with the connected Blackfly:
+Verified with a connected Blackfly:
 
 - Full-resolution Mono8 and Mono16 acquisition, software triggering.
 - ROI request `(511,383,101,99)` aligned to `(508,382,100,98)`, followed by
@@ -134,7 +134,8 @@ On this Mac with the connected Blackfly:
 
 The captured scene was dark; live beam metrology was not validated against a
 physical reference. Synthetic known-truth tests validate fitting and grid analysis.
-Actual live evidence is in `data/validation/hardware.json` and `viewer.jpg`.
+The hardware check writes local evidence to `data/validation/hardware.json` and
+`viewer.jpg`; captured camera data is not committed.
 `tools/check_hardware.py` reproduces the native GUI/hardware acceptance test;
 run it with the same SDK environment variables as `run.sh`. It changes exposure,
 gain and ROI, so close the regular viewer first.
