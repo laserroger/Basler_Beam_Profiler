@@ -1,5 +1,19 @@
 __pycache__/
 build/
 dist/
+*.spec
+# runtime output
+data/
+pylon_camera.json
 # GitHub Actions artifacts
 .github/workflows/*.log
+# generated test data (PNG + JSON ground truth are committed)
+test_images/*.npy
+.venv/
+.pytest_cache/
+fit_config.json    # per-machine spot-fitting settings, written by the settings window
+
+.python/
+fit_config.json
+
+.vendor/

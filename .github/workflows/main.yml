@@ -1,165 +1,26 @@
-name: Build and Release
+name: Test beam profiler
 
 on:
   push:
-    branches: [ main ]
+    branches: [main, macos-flir-support]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
-  contents: write
-  pull-requests: read
+  contents: read
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
-
+          python-version: '3.12'
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
-
-      - name: Build executable with PyInstaller (Windows)
-        run: |
-          pyinstaller --onefile pylon_camera.py
-
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pylon_camera-windows
-          path: dist/pylon_camera.exe
-          retention-days: 30
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
-
-      - name: (Manual) Install Pylon SDK - You must customize this step
-        run: |
-          echo "Please add steps to install Basler Pylon SDK here"
-
-      - name: Build .app with your custom PyInstaller spec
-        run: |
-          pyinstaller pylon_camera.spec
-
-      - name: Add editable camera_config.yaml and link to /Applications
-        run: |
-          mkdir -p dmg_temp
-          cp -R dist/pylon_camera.app dmg_temp/
-          cp camera_config.yaml dmg_temp/
-          ln -s /Applications dmg_temp/Applications
-          
-
-      - name: Patch dylib paths for Pylon dependencies
-        run: |
-          # Define base app path
-          APP_PATH="dist/pylon_camera.app"
-          FRAMEWORKS="$APP_PATH/Contents/Frameworks"
-          PYPYLON="$FRAMEWORKS/pypylon"
-          PYLON_LIBS="$PYPYLON/pylon.framework/Versions/A/Libraries"
-
-          echo "✅ Patching .dylib install names..."
-          install_name_tool -id @rpath/libMathParser_gcc_v3_1_Basler_pylon_v3.dylib \
-            "$PYPYLON/libMathParser_gcc_v3_1_Basler_pylon_v3.dylib"
-          install_name_tool -id @rpath/libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib \
-            "$PYPYLON/libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib"
-
-          echo "✅ Patching GenApi -> MathParser..."
-          install_name_tool -change @rpath/libMathParser_gcc_v3_1_Basler_pylon_v3.dylib \
-            @loader_path/../libMathParser_gcc_v3_1_Basler_pylon_v3.dylib \
-            "$PYLON_LIBS/libGenApi_gcc_v3_1_Basler_pylon_v3.dylib"
-
-          echo "✅ Patching XmlParser -> NodeMapData..."
-          install_name_tool -change @rpath/libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib \
-            @loader_path/../libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib \
-            "$PYLON_LIBS/libXmlParser_gcc_v3_1_Basler_pylon_v3.dylib"
-
-          echo "✅ Done patching Pylon .dylibs"
-
-      - name: Create .dmg with drag-and-drop installer
-        run: |
-          hdiutil create dist/pylon_camera.dmg \
-            -volname "PylonCamera" \
-            -srcfolder dmg_temp \
-            -ov -format UDZO
-
-      - name: Upload macOS .dmg artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pylon_camera-macos
-          path: dist/pylon_camera.dmg
-          retention-days: 30
-
-
-  release:
-    needs: [build-windows, build-macos]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: pylon_camera-windows
-          path: artifacts/windows
-
-      - name: Download macOS artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: pylon_camera-macos
-          path: artifacts/macos
-
-      - name: Generate release tag
-        id: tag
-        run: |
-          date=$(date +"%Y.%m.%d.%H%M")
-          echo "release_tag=v$date" >> "$GITHUB_OUTPUT"
-          echo "RELEASE_TAG=v$date" >> "$GITHUB_ENV"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.tag.outputs.release_tag }}
-          name: "Basler Camera Profiler ${{ steps.tag.outputs.release_tag }}"
-          body: |
-            ## Basler Beam Profiler Release
-
-            **Built on:** ${{ steps.tag.outputs.release_tag }}
-            **Commit:** ${{ github.sha }}
-
-            ### What's New
-            - 🪟 Windows: `pylon_camera.exe`
-            - 🍎 macOS: `pylon_camera.dmg` (with drag-and-drop installer + editable config)
-
-            ### macOS Install
-            - Open the `.dmg`, drag `pylon_camera.app` and `camera_config.yaml` to the same folder.
-            - Edit `camera_config.yaml` as needed.
-
-            ### Download
-            Choose the executable for your platform below.
-          files: |
-            artifacts/windows/pylon_camera.exe
-            artifacts/macos/pylon_camera.dmg
-          draft: false
-          prerelease: false
-          fail_on_unmatched_files: true
+        run: python -m pip install -r requirements.txt pytest
+      - name: Test processing, camera contracts and settings
+        run: python -m pytest -q
