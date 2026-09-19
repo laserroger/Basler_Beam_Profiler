@@ -1,55 +1,26 @@
-# -*- mode: python ; coding: utf-8 -*-
-
-binaries = [
-    ('external_libs/libMathParser_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
-    ('external_libs/libNodeMapData_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
-    ('external_libs/libGenApi_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
-    ('external_libs/libXmlParser_gcc_v3_1_Basler_pylon_v3.dylib', 'pypylon'),
-]
+# Build a native macOS app with the current Python environment's architecture.
+# pypylon's PyInstaller hook collects its matching SDK libraries; do not bundle
+# the old, manually copied external_libs binaries from another SDK version.
 a = Analysis(
     ['pylon_camera.py'],
     pathex=[],
-    binaries=binaries,
-    datas=[],
-    hiddenimports=[],
+    binaries=[],
+    datas=[('camera_config.yaml', '.'), ('docs/macos.md', 'docs')],
+    hiddenimports=['AppKit', 'Foundation'],
     hookspath=[],
-    hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['PySpin', '_PySpin', 'cupy'],
     noarchive=False,
-    optimize=0,
 )
 pyz = PYZ(a.pure)
-
 exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    exclude_binaries=True,
-    name='pylon_camera',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
+    pyz, a.scripts, [], exclude_binaries=True, name='pylon_camera',
+    debug=False, strip=False, upx=False, console=False,
+    argv_emulation=False, target_arch=None, codesign_identity=None,
 )
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='pylon_camera',
-)
+coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='pylon_camera')
 app = BUNDLE(
-    coll,
-    name='pylon_camera.app',
-    icon=None,
-    bundle_identifier=None,
+    coll, name='pylon_camera.app', icon=None,
+    bundle_identifier='com.laserroger.beamprofiler',
+    info_plist={'NSHighResolutionCapable': True},
 )

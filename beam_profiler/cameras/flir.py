@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import logging
 import math
+import os
+import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -32,6 +35,19 @@ class _Session:
 
 
 def open_flir_cameras(mode="16Bit"):
+    if sys.platform == "darwin":
+        # A frozen app can load the separately installed vendor Python binding.
+        # Its Python ABI and architecture must match this app (cp312/arm64).
+        bindings = os.environ.get("BEAM_PROFILER_PYSPIN_PATH", os.path.expanduser(
+            "~/Library/Application Support/BeamProfiler/pyspin"))
+        if os.path.isdir(bindings) and bindings not in sys.path:
+            sys.path.append(bindings)
+        if "SPINNAKER_GENTL64_CTI" not in os.environ:
+            for path in ("/usr/local/lib/spinnaker-gentl/Spinnaker_GenTL.cti",
+                         "/Applications/Spinnaker/lib/spinnaker-gentl/Spinnaker_GenTL.cti"):
+                if Path(path).is_file():
+                    os.environ["SPINNAKER_GENTL64_CTI"] = path
+                    break
     try:
         import PySpin as sdk
     except (ImportError, OSError) as exc:

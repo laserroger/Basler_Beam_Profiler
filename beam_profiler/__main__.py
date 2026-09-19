@@ -35,7 +35,11 @@ def main(argv=None):
         "--sim-sigma", type=float, default=None,
         help="spot sigma in px (default: pitch/10, i.e. waist = pitch/5)",
     )
+    parser.add_argument("--frames", type=int, default=None,
+                        help="exit after this many frames (for package smoke checks)")
     args = parser.parse_args(argv)
+    if args.frames is not None and args.frames < 1:
+        parser.error("--frames must be positive")
 
     logging.basicConfig(
         level=logging.INFO,
@@ -60,7 +64,7 @@ def main(argv=None):
     try:
         from .ui import Viewer
 
-        Viewer(cameras).run()
+        Viewer(cameras).run(max_frames=args.frames)
     finally:
         for camera in cameras:
             try:

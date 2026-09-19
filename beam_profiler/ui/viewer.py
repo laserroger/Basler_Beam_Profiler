@@ -109,14 +109,15 @@ class Viewer:
         return ViewTransform(self.camera.ROI, WINDOW_SIZE)
 
     # ------------------------------ main loop ----------------------------- #
-    def run(self):
+    def run(self, max_frames=None):
         try:
-            self._run_loop()
+            self._run_loop(max_frames=max_frames)
         finally:
             cv2.destroyAllWindows()
             settings.destroy_settings()
 
-    def _run_loop(self):
+    def _run_loop(self, max_frames=None):
+        frame_count = 0
         os.makedirs(DATA_DIR, exist_ok=True)
         while True:
             settings.pump_events()
@@ -151,6 +152,9 @@ class Viewer:
             disp = self._compose(frame_disp, spots)
             cv2.imshow(WINDOW, disp)
             if not self._handle_key(cv2.waitKeyEx(1)):
+                break
+            frame_count += 1
+            if max_frames is not None and frame_count >= max_frames:
                 break
             self._sleep_for_fps(time.time() - t0)
 
