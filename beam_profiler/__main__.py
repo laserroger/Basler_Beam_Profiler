@@ -37,6 +37,8 @@ def main(argv=None):
     )
     parser.add_argument("--frames", type=int, default=None,
                         help="exit after this many frames (for package smoke checks)")
+    parser.add_argument("--check-drivers", action="store_true",
+                        help="verify bundled Basler and FLIR libraries and exit")
     args = parser.parse_args(argv)
     if args.frames is not None and args.frames < 1:
         parser.error("--frames must be positive")
@@ -47,6 +49,18 @@ def main(argv=None):
         datefmt="%H:%M:%S",
         handlers=[logging.StreamHandler(sys.stdout)],
     )
+
+    if args.check_drivers:
+        import PySpin
+        from pypylon import pylon
+        system = PySpin.System.GetInstance()
+        try:
+            version = system.GetLibraryVersion()
+            print(f"FLIR runtime: {version.major}.{version.minor}.{version.type}.{version.build}")
+            print(f"Basler runtime: {pylon.GetPylonVersionString()}")
+        finally:
+            system.ReleaseInstance()
+        return
 
     from .cameras import open_cameras
 

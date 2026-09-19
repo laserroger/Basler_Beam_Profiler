@@ -28,7 +28,7 @@ jobs:
 
   build-macos:
     name: Build macOS app and DMG (Apple Silicon)
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -36,9 +36,21 @@ jobs:
           python-version: '3.12'
           architecture: arm64
       - name: Install dependencies
-        run: python -m pip install -r requirements-basler.txt pyinstaller
-      - name: Build macOS app
+        run: python -m pip install -r requirements-macos-build.txt
+      - name: Extract pinned FLIR runtime
+        run: |
+          cd external_libs/flir/macos-arm64
+          shasum -a 256 -c SHA256SUMS
+          mkdir -p ../../../.vendor
+          tar -xzf runtime-4.4.0.246-cp312.tar.gz -C ../../../.vendor
+      - name: Build macOS app with bundled Basler and FLIR libraries
+        env:
+          BEAM_REQUIRE_FLIR: '1'
         run: python -m PyInstaller --noconfirm pylon_camera.spec
+      - name: Verify bundled camera drivers
+        run: |
+          python -m tools.check_macos_bundle dist/pylon_camera.app
+          dist/pylon_camera.app/Contents/MacOS/pylon_camera --check-drivers
       - name: Smoke-test packaged app
         run: dist/pylon_camera.app/Contents/MacOS/pylon_camera --sim --frames 3
       - name: Create macOS disk image
@@ -78,9 +90,10 @@ jobs:
             The app is ad-hoc signed, not Apple-notarized. Configuration and saved
             frames are under ~/Library/Application Support/BeamProfiler.
 
-            Basler and simulation support are included. FLIR requires a separate
-            Spinnaker SDK and matching Python 3.12 ARM64 binding installation;
-            see docs/macos.md for the packaged-app instructions.
+            Basler, FLIR and simulation support are bundled. No separate Python,
+            Spinnaker SDK, pylon SDK or Homebrew installation is required.
+            Requires Apple Silicon and macOS 26 or later. Third-party runtime
+            libraries retain their vendor licenses, included inside the app.
           files: |
             artifacts/pylon_camera.exe
             artifacts/pylon_camera-macos-arm64.dmg

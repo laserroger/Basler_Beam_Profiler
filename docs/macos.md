@@ -11,7 +11,8 @@ The installed environment is native Apple Silicon Python 3.12.14 with Spinnaker
 Python runtime (`.python`), and SDK libraries (`.vendor/spinnaker`) are local to
 this folder. Homebrew supplies libusb, libomp and FFmpeg 6 dependencies. Keep the
 folder in its current location: virtual environments contain absolute paths.
-The proprietary SDK is excluded from Git and the source archive.
+The full SDK installer is excluded. The matching runtime libraries are vendored
+for the standalone Mac build and retain their own licenses.
 
 `run.sh` configures the local SDK library and GenTL transport paths automatically.
 No global shell-profile changes are required. If you prefer Terminal:
@@ -31,32 +32,21 @@ or the `.dmg` from its GitHub release. Drag `pylon_camera.app` into Applications
 The app is ad-hoc signed, not Apple-notarized; use macOS Privacy & Security's
 Open Anyway option if macOS blocks this trusted download.
 
-The app includes Python, the analysis dependencies, Basler support and simulation.
+The app includes Python, the analysis dependencies, Basler/FLIR support and simulation.
 Editable configuration, fitting settings and saved images live under
 `~/Library/Application Support/BeamProfiler`, outside the application bundle.
 The bundled camera configuration is copied there on first launch without
 replacing an existing configuration.
 
-FLIR's proprietary SDK and Python bindings are installed separately:
+The Apple Silicon DMG bundles the tested Basler and FLIR runtimes, Python, and
+all native dependencies. It requires **macOS 26 or later**, but requires no SDK,
+Python, Homebrew, or separate camera-library installation. FLIR's libraries are
+kept in their own directory to avoid collisions with OpenCV's video libraries.
+Third-party libraries retain their original licenses, included inside the app.
 
-1. Install the matching Spinnaker SDK and its prerequisites using the instructions
-   below. GitHub Actions does not redistribute Spinnaker.
-2. With native ARM64 Python 3.12, install the vendor's matching cp312 ARM64 wheel:
-
-   ```sh
-   python3.12 -m pip install --no-deps \
-     --target "$HOME/Library/Application Support/BeamProfiler/pyspin" \
-     /path/to/spinnaker_python-VERSION-cp312-cp312-macosx_14_0_arm64.whl
-   ```
-
-3. Launch the app. It discovers the external bindings and standard Spinnaker
-   transport locations automatically. The wheel version must match the installed
-   SDK. For nonstandard binding locations, launch from Terminal with
-   `BEAM_PROFILER_PYSPIN_PATH` pointing to the folder containing `PySpin.py` and
-   `_PySpin`.
-
-The existing source launcher remains supported and already works with the local
-SDK environment on the development Mac. The packaged app is a separate install.
+The GitHub build verifies the checksum of the copied FLIR runtime, bundles it,
+initializes both vendor drivers, and opens a short simulated viewer session.
+The source installation steps below are only for running or developing from source.
 
 ## Controls and feature parity
 
