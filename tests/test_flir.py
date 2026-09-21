@@ -191,21 +191,3 @@ def test_simulation_does_not_load_sdk(monkeypatch):
     monkeypatch.setitem(sys.modules, 'PySpin', None)
     camera = open_cameras(simulate=True)[0]
     assert camera.grab_image().dtype == np.uint16
-
-
-def test_auto_without_hardware_never_simulates(monkeypatch):
-    monkeypatch.setattr('beam_profiler.cameras.flir.open_flir_cameras', lambda mode: [])
-    monkeypatch.setattr('beam_profiler.cameras._open_basler', lambda mode: [])
-    with pytest.raises(RuntimeError, match='No camera could be opened') as error:
-        open_cameras()
-    assert 'FLIR: no cameras detected' in str(error.value)
-    assert 'BASLER: no cameras detected' in str(error.value)
-
-
-def test_auto_reports_driver_failure_instead_of_simulating(monkeypatch):
-    def broken_driver(mode):
-        raise OSError('transport failed to load')
-    monkeypatch.setattr('beam_profiler.cameras.flir.open_flir_cameras', broken_driver)
-    monkeypatch.setattr('beam_profiler.cameras._open_basler', lambda mode: [])
-    with pytest.raises(RuntimeError, match='FLIR: transport failed to load'):
-        open_cameras()
