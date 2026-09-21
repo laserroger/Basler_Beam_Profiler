@@ -1,0 +1,8 @@
+{
+  "version": "4.4.0.246",
+  "base_url": "https://github.com/laserroger/Basler_Beam_Profiler/releases/download/spinnaker-windows-4.4.0.246/",
+  "files": {
+    "SpinnakerSDK_FULL_4.4.0.246_x64.exe": "ca842792d522cbd4ca3549554ca11995108ec3b641ab3267d1f4bec319cd7e98",
+    "spinnaker_python-4.4.0.246-cp312-cp312-win_amd64.whl": "5705935b45dcd3a71fae02f9afebed4c383549e4642098b3eca43fa6748c52b7"
+  }
+}

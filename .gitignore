@@ -2,6 +2,7 @@ __pycache__/
 build/
 dist/
 *.spec
+!pylon_camera_windows.spec
 # runtime output
 data/
 pylon_camera.json

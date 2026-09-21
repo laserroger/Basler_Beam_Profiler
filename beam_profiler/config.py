@@ -11,11 +11,15 @@ import yaml
 
 
 def app_dir() -> str:
-    """Writable data directory: macOS Application Support, beside a Windows
+    """Writable data directory: macOS Application Support, Windows LocalAppData,
     executable, or the repository root when running from source."""
     if getattr(sys, "frozen", False):
-        if sys.platform == "darwin":
-            path = os.path.expanduser("~/Library/Application Support/BeamProfiler")
+        if sys.platform in ("darwin", "win32"):
+            if sys.platform == "darwin":
+                path = os.path.expanduser("~/Library/Application Support/BeamProfiler")
+            else:
+                root = os.environ.get('LOCALAPPDATA', os.path.expanduser('~/AppData/Local'))
+                path = os.path.join(root, 'BeamProfiler')
             os.makedirs(path, exist_ok=True)
             config = os.path.join(path, "camera_config.yaml")
             bundled = os.path.join(sys._MEIPASS, "camera_config.yaml")

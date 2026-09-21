@@ -16,15 +16,58 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install dependencies
-        run: python -m pip install -r requirements-basler.txt pyinstaller
-      - name: Build Windows executable
-        run: python -m PyInstaller --noconfirm --onefile pylon_camera.py
+      - name: Fetch pinned Windows FLIR runtime and driver installer
+        run: python -m tools.fetch_windows_vendor
+      - name: Build offline Windows installer with bundled FLIR
+        shell: pwsh
+        run: |
+          ./tools/build_windows.ps1 -SpinnakerInstaller .vendor/windows/SpinnakerSDK_FULL_4.4.0.246_x64.exe -PySpinWheel .vendor/windows/spinnaker_python-4.4.0.246-cp312-cp312-win_amd64.whl
       - uses: actions/upload-artifact@v4
         with:
           name: pylon_camera-windows
-          path: dist/pylon_camera.exe
+          path: dist/BeamProfiler-Windows-x64-Setup.exe
           if-no-files-found: error
+
+  test-windows-installer:
+    name: Verify installer on separate Windows runner
+    needs: build-windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pylon_camera-windows
+          path: installer
+      - name: Install bundled runtime and USB drivers
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sdk = "$env:ProgramFiles\Teledyne\Spinnaker"
+          if (Test-Path $sdk) { throw 'Verification requires a runner without Spinnaker.' }
+          $setup = (Resolve-Path installer/BeamProfiler-Windows-x64-Setup.exe).Path
+          $install = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LOG=setup.log' -Wait -PassThru
+          if ($install.ExitCode -notin @(0, 3010)) { throw "Setup failed: $($install.ExitCode)" }
+          if (-not (Test-Path $sdk)) { throw 'Bundled Spinnaker installer did not install its runtime.' }
+      - name: Verify packaged app without SDK paths
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $app = "$env:ProgramFiles\Beam Profiler\pylon_camera.exe"
+          Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+          Remove-Item Env:SPINNAKER_GENTL64_CTI -ErrorAction SilentlyContinue
+          Remove-Item Env:GENICAM_GENTL64_PATH -ErrorAction SilentlyContinue
+          $env:PATH = "$env:SystemRoot\system32;$env:SystemRoot"
+          & $app --check-drivers
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled camera initialization failed.' }
+          & $app --sim --frames 3
+          if ($LASTEXITCODE -ne 0) { throw 'Installed app smoke test failed.' }
+          if (-not (Test-Path "$env:LOCALAPPDATA\BeamProfiler\camera_config.yaml")) { throw 'Writable camera configuration is missing.' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-installer-logs
+          path: |
+            setup.log
+            C:/ProgramData/Spinnaker/Logs/**
 
   build-macos:
     name: Build macOS app and DMG (Apple Silicon)
@@ -67,7 +110,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [build-windows, build-macos]
+    needs: [test-windows-installer, build-macos]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
@@ -84,7 +127,12 @@ jobs:
           tag_name: ${{ steps.tag.outputs.value }}
           name: Beam Profiler ${{ steps.tag.outputs.value }}
           body: |
-            Windows executable and Apple Silicon macOS app.
+            Offline Windows installer and Apple Silicon macOS app.
+
+            Windows: run BeamProfiler-Windows-x64-Setup.exe and approve the
+            administrator prompt. It includes Python, Basler/FLIR runtime libraries,
+            and the vendor installer for FLIR USB drivers and prerequisites.
+            No separate SDK, Python installation, or dependency download is needed.
 
             macOS: open the DMG and drag pylon_camera.app into Applications.
             The app is ad-hoc signed, not Apple-notarized. Configuration and saved
@@ -95,6 +143,6 @@ jobs:
             Requires Apple Silicon and macOS 26 or later. Third-party runtime
             libraries retain their vendor licenses, included inside the app.
           files: |
-            artifacts/pylon_camera.exe
+            artifacts/BeamProfiler-Windows-x64-Setup.exe
             artifacts/pylon_camera-macos-arm64.dmg
           fail_on_unmatched_files: true
