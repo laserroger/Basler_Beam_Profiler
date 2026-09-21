@@ -4,6 +4,19 @@ from Foundation import NSObject
 import objc
 
 
+def show_camera_error(message):
+    """Make discovery failures visible when Finder hides console output."""
+    from AppKit import NSAlert, NSApplicationActivationPolicyRegular
+    app = NSApplication.sharedApplication()
+    app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+    alert = NSAlert.alloc().init()
+    alert.setMessageText_("Unable to open camera")
+    alert.setInformativeText_(message)
+    alert.addButtonWithTitle_("Quit")
+    app.activateIgnoringOtherApps_(True)
+    alert.runModal()
+
+
 class ProfilerCloseHandler(NSObject):
     @objc.python_method
     def configure(self, callback):

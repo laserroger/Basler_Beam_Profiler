@@ -33,6 +33,9 @@ The app is ad-hoc signed, not Apple-notarized; use macOS Privacy & Security's
 Open Anyway option if macOS blocks this trusted download.
 
 The app includes Python, the analysis dependencies, Basler/FLIR support and simulation.
+Normal launch requires a real camera. If discovery fails, a visible dialog reports
+the driver errors; the app never silently substitutes simulated images. Simulation
+requires explicitly launching with `--sim` or `--camera sim`.
 Editable configuration, fitting settings and saved images live under
 `~/Library/Application Support/BeamProfiler`, outside the application bundle.
 The bundled camera configuration is copied there on first launch without

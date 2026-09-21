@@ -73,6 +73,9 @@ def main(argv=None):
     try:
         cameras = open_cameras(mode=args.mode, simulate=args.sim, backend=args.camera, **sim_opts)
     except RuntimeError as exc:
+        if sys.platform == "darwin" and getattr(sys, "frozen", False):
+            from .ui.macos import show_camera_error
+            show_camera_error(str(exc))
         parser.exit(1, f"{exc}\n")
 
     try:

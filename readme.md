@@ -15,14 +15,14 @@ API and hardware sync outputs.
 
 ```bash
 pip install -r requirements.txt
-python -m beam_profiler            # live camera (falls back to the simulator)
+python -m beam_profiler            # live camera; reports an error if unavailable
 python -m beam_profiler --sim      # simulated camera, no hardware needed
 python pylon_camera.py             # legacy entry point, same application
 ```
 
 ### Simulated camera
 
-`--sim` (or having no camera connected) renders a fixed grid of Gaussian spots
+Explicitly selecting `--sim` renders a fixed grid of Gaussian spots
 with realistic noise in real time, so every CV function — blob detection,
 Gaussian fitting, row/column statistics, auto-exposure — can be exercised
 without hardware:
