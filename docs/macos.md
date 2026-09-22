@@ -59,12 +59,13 @@ are shared by FLIR, Basler and simulated cameras.
 | Left/right arrows | Decrease/increase exposure by 10% |
 | Down/up arrows | Divide/multiply exposure by 10 |
 | `f` | Beam detection and 2D Gaussian/moment fitting |
+| `p` / `P` | Toggle single-beam Gaussian profiler; whole frame or green fitting rectangle |
 | `g` | Beam statistics |
 | `h` | Array row/column statistics |
-| Wheel | Sensor ROI zoom centered at the pointer |
+| Two-finger scroll / mouse wheel | Sensor ROI zoom centered at the pointer |
 | Shift + wheel (or Ctrl + wheel) | Change ROI aspect ratio |
 | Drag | White measurement rectangle |
-| Shift + drag (or Ctrl + drag) | Green fitting rectangle |
+| Shift + drag | Green fitting rectangle |
 | `c` / `v` | Clear white / green rectangle |
 | `o` | Live fitting settings, persisted in `fit_config.json` |
 | `s` | Save JPEG plus full-depth NumPy frame under `data/` |
@@ -178,3 +179,6 @@ older program.
 - [Python compatibility](https://softwareservices.flir.com/Spinnaker/latest/getting-started/python.html)
 - [Camera specifications](https://softwareservices.flir.com/BFS-U3-31S4/latest/Model/spec.html)
 - [GPIO definitions](https://softwareservices.flir.com/BFS-U3-31S4/latest/Model/public/DigitalIOControl.html)
+
+Single-beam fitting performance and Apple GPU measurements are documented in
+[macOS performance](macos-performance.md).

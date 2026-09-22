@@ -24,6 +24,8 @@ from ..config import (
 )
 from .. import fitconfig
 from ..processing import SpotArray, classify_grid, detect_spots, gpu, region_stats
+from ..processing.profiler import fit_single_beam
+from ..processing.stats import crop_rect
 from ..roi import ROIModel, ViewTransform
 from ..status import write_status
 from . import overlays, settings
@@ -52,10 +54,14 @@ class Viewer:
 
         self._auto_exp = False
         self.do_fitting = False
+        self.profiler_enabled = False
+        self.profiler_message = ''
         self.show_stats = False
         self.row_col_fitting = False
         self.exposure_us = 200
         self.last_mouse = (0, 0)  # sensor coords
+        self._mouse_display = None
+        self._pending_scroll = [0.0, 0.0]
         self.rect_disp = None  # white rectangle while dragging (display coords)
         self.rect_sensor = None
         self.fit_rect_disp = None  # green fitting rectangle while dragging
@@ -123,6 +129,7 @@ class Viewer:
             settings.pump_events()
             if self._quit_requested or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                 break
+            self._apply_scroll()
             t0 = time.time()
             frame = self.camera.grab_image()
             if frame is None:
@@ -143,7 +150,10 @@ class Viewer:
                 else None
             )
 
-            spots = self._detect(frame) if self.do_fitting else SpotArray.empty()
+            if self.profiler_enabled:
+                spots = self._profile(frame)
+            else:
+                spots = self._detect(frame) if self.do_fitting else SpotArray.empty()
             self.latest_spots = spots  # columnar; server.py serialises on request
             self._update_spot_stats(spots)
             if self.web_server_enabled:
@@ -167,6 +177,20 @@ class Viewer:
         sx, sy = ox + spots.x, oy + spots.y
         return spots[(sx >= x1) & (sx <= x2) & (sy >= y1) & (sy <= y2)]
 
+    def _profile(self, frame) -> SpotArray:
+        x0 = y0 = 0
+        if self.fit_rect_sensor is not None:
+            cropped = crop_rect(frame, self.camera.ROI, self.fit_rect_sensor)
+            if cropped is None:
+                self.profiler_message = 'Fitting region is outside the camera ROI'
+                return SpotArray.empty()
+            frame, (x0, y0, _, _) = cropped
+        result = fit_single_beam(frame)
+        self.profiler_message = result.message
+        result.spots.x += x0
+        result.spots.y += y0
+        return result.spots
+
     def _compose(self, frame_disp, spots) -> np.ndarray:
         """Resize + pad the frame to the window and draw all overlays.
 
@@ -184,13 +208,13 @@ class Viewer:
             value=PAD_COLOR[0],
         )
         disp = cv2.cvtColor(padded, cv2.COLOR_GRAY2RGB)
-        if len(spots) and not self.row_col_fitting:
+        if len(spots) and (self.profiler_enabled or not self.row_col_fitting):
             overlays.draw_spots(disp, spots, view, self.camera.pixel_size)
 
         y = overlays.draw_hud(disp, self._hud_lines())
         if self.show_rect_stats:
             y = overlays.draw_rect_stats(disp, self.current_rect_stats, y)
-        if self.show_stats:
+        if self.show_stats and not self.profiler_enabled:
             bar_y = overlays.draw_spot_stats(
                 disp,
                 y,
@@ -209,9 +233,23 @@ class Viewer:
                     self.camera.pixel_size * 1e6,
                 )
         self._draw_rectangles(disp, view)
-        if self.row_col_fitting and self.do_fitting:
+        if self.row_col_fitting and self.do_fitting and not self.profiler_enabled:
             overlays.draw_row_col(disp, view, self.rows, self.columns)
         return disp
+
+    def _hover_pixel(self):
+        """Read the raw sensor pixel, never the resized display or its overlays."""
+        if self.current_frame is None or self._mouse_display is None:
+            return None
+        view = self.view
+        if not view.contains(*self._mouse_display):
+            return None
+        sx, sy = (int(v) for v in view.to_sensor(*self._mouse_display))
+        x, y = sx - view.ox, sy - view.oy
+        h, w = self.current_frame.shape[:2]
+        if not (0 <= x < w and 0 <= y < h):
+            return None
+        return sx, sy, int(self.current_frame[y, x])
 
     def _hud_lines(self) -> list[str]:
         exposure = self.camera.ExposureTime
@@ -219,14 +257,27 @@ class Viewer:
         um = self.camera.pixel_size * 1e6
         rect_w = (self.rect_sensor[2] - self.rect_sensor[0]) * um if self.rect_sensor else 0
         rect_h = (self.rect_sensor[3] - self.rect_sensor[1]) * um if self.rect_sensor else 0
+        hover = self._hover_pixel()
+        mouse_line = (f'Mouse: ({hover[0]}, {hover[1]})  Raw: {hover[2]} DN'
+                      if hover is not None else 'Mouse: --  Raw: --')
+        fitting_line = (f'Profiler: ON (cpu) - {self.profiler_message} (P to toggle)'
+                        if self.profiler_enabled else
+                        f'Fitting: {self.do_fitting} ({gpu.backend_name()}), Stats: {self.show_stats}, '
+                        f'Row-Col: {self.row_col_fitting} (P: single beam)')
+        detail = f"Fit: {fitconfig.describe()} (Press 'o' for settings)"
+        if self.profiler_enabled:
+            detail = 'Single Gaussian + background; Shift-drag selects region; v clears'
+            if len(self.latest_spots):
+                spot = self.latest_spots[0]
+                detail = (f"1/e^2 radii: {spot['sigma_0']*um:.1f}, {spot['sigma_1']*um:.1f} um; "
+                          'Shift-drag region, v clears')
         return [
             f"Camera: {self.camera.model_name}, FPS: {1 / self.avg_dt:4.1f}",
-            f"ROI: {self.camera.ROI}  Mouse: {self.last_mouse}",
+            f"ROI: {self.camera.ROI}  {mouse_line}",
             f"Exposure: {exposure_txt} us",
             f"Rect: {self.rect_sensor}, W = {rect_w:.1f} um, H = {rect_h:.1f} um",
-            f"Fitting: {self.do_fitting} ({gpu.backend_name()}), Stats: {self.show_stats}, "
-            f"Row-Col: {self.row_col_fitting}",
-            f"Fit: {fitconfig.describe()} (Press 'o' for settings)",
+            fitting_line,
+            detail,
             f"Web Server: {'ON' if self.web_server_enabled else 'OFF'}, "
             f"Rect Stats: {'ON' if self.show_rect_stats else 'OFF'} (Press 'w' to toggle)",
             f"User output: {self.camera.userdefined_line_enabled} (Press 'y' to toggle)",
@@ -300,30 +351,61 @@ class Viewer:
         self.latest_stats = stats
 
     # ------------------------------ mouse --------------------------------- #
+    def _apply_scroll(self):
+        zoom, aspect = self._pending_scroll
+        self._pending_scroll = [0.0, 0.0]
+        if not (zoom or aspect) or self._mouse_display is None:
+            return
+        view = self.view
+        if not view.contains(*self._mouse_display):
+            return
+        anchor = view.to_sensor(*self._mouse_display)
+        # Start from the actual ROI, including the camera's size increments.
+        w, h, ox, oy = self.camera.ROI
+        model = self.roi_model
+        model.scale, model.aspect = w / model.full_w, w / h
+        model.cx, model.cy = ox + w / 2, oy + h / 2
+        if aspect:
+            model.keep_point_fixed(
+                *anchor, new_aspect=model.aspect * np.exp(-np.clip(aspect, -0.35, 0.35)))
+        if zoom:
+            model.keep_point_fixed(
+                *anchor, new_scale=model.scale * np.exp(-np.clip(zoom, -0.35, 0.35)))
+        requested = model.tuple
+        if requested != self.camera.ROI:
+            self.camera.ROI = requested
+            # The old frame no longer corresponds to the current sensor ROI.
+            self.current_frame = None
+
     def on_mouse(self, event, x, y, flags, _param):
+        if event in (cv2.EVENT_MOUSEWHEEL, cv2.EVENT_MOUSEHWHEEL):
+            if sys.platform == "darwin":
+                # Cocoa supplies scroll deltas as x/y, NOT cursor coordinates;
+                # flags contain modifiers only. Keep the last real pointer.
+                delta = y if event == cv2.EVENT_MOUSEWHEEL else x
+                amount = delta * 0.005
+            else:
+                if event == cv2.EVENT_MOUSEHWHEEL:
+                    return
+                self._mouse_display = (x, y)
+                delta = (flags >> 16) & 0xffff
+                if delta >= 0x8000:
+                    delta -= 0x10000
+                amount = delta / 120 * 0.1
+            aspect = bool(flags & (cv2.EVENT_FLAG_CTRLKEY | cv2.EVENT_FLAG_SHIFTKEY))
+            if event == cv2.EVENT_MOUSEHWHEEL and not aspect:
+                return
+            self._pending_scroll[int(aspect)] += amount
+            return
+
+        self._mouse_display = (x, y)
         view = self.view
         if view.contains(x, y):
             sx, sy = view.to_sensor(x, y)
             self.last_mouse = (int(sx), int(sy))
         ctrl = flags & (cv2.EVENT_FLAG_CTRLKEY | cv2.EVENT_FLAG_SHIFTKEY)
 
-        if event == cv2.EVENT_MOUSEWHEEL:
-            if ctrl:  # change aspect ratio, keeping the long edge fixed
-                if abs(self.roi_model.aspect) < 0.01:
-                    return
-                factor = 0.95 if flags > 0 else 1.05
-                self.roi_model.keep_point_fixed(
-                    *self.last_mouse, new_aspect=self.roi_model.aspect * factor
-                )
-            else:  # zoom
-                delta = 0.05 if abs(self.roi_model.scale) > 0.1 else 0.01
-                delta = -delta if flags > 0 else delta
-                self.roi_model.keep_point_fixed(
-                    *self.last_mouse, new_scale=self.roi_model.scale + delta
-                )
-            self.camera.ROI = self.roi_model.tuple
-
-        elif event == cv2.EVENT_LBUTTONDOWN and view.contains(x, y):
+        if event == cv2.EVENT_LBUTTONDOWN and view.contains(x, y):
             if ctrl:
                 self.fit_rect_disp = [x, y, x, y]
             else:
@@ -360,6 +442,10 @@ class Viewer:
             self._adjust_exposure(KEY_FACTORS[key])
         elif key == ord("a"):
             self.auto_exp = not self.auto_exp
+        elif key in (ord('p'), ord('P')):
+            self.profiler_enabled = not self.profiler_enabled
+            self.profiler_message = ''
+            self.latest_spots = SpotArray.empty()
         elif key == ord("f"):
             self.do_fitting = not self.do_fitting
         elif key == ord("g"):
@@ -431,6 +517,7 @@ class Viewer:
             rect=self.rect_sensor,
             fit_rect=self.fit_rect_sensor,
             do_fitting=self.do_fitting,
+            profiler_enabled=self.profiler_enabled,
             show_stats=self.show_stats,
         )
         self.curr_idx = (self.curr_idx + 1) % len(self.cameras)
@@ -445,6 +532,7 @@ class Viewer:
             self.rect_sensor = st["rect"]
             self.fit_rect_sensor = st["fit_rect"]
             self.do_fitting = st["do_fitting"]
+            self.profiler_enabled = st["profiler_enabled"]
             self.show_stats = st["show_stats"]
         else:
             self.roi_model = ROIModel(self.camera.W, self.camera.H)
@@ -454,6 +542,8 @@ class Viewer:
             self.auto_exp = False
             self.rect_sensor = self.fit_rect_sensor = None
             self.do_fitting = self.show_stats = False
+            self.profiler_enabled = False
+        self.profiler_message = ''
         logging.info("Switched to %s", self.camera.model_name)
 
     def _toggle_web_server(self):

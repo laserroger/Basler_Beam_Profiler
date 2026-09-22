@@ -20,6 +20,17 @@ python -m beam_profiler --sim      # simulated camera, no hardware needed
 python pylon_camera.py             # legacy entry point, same application
 ```
 
+### Single-beam profiler
+
+Press **P** in the viewer to toggle the single-beam profiler. It fits one rotated
+elliptical Gaussian plus a constant background over the whole camera image,
+without blob detection or spot crop limits. Shift-drag a green fitting rectangle
+to restrict the fit; press `v` to clear it. The overlay reports 1/e² radii and
+flags beams that reach the region boundary. This is a Gaussian model estimate,
+not an ISO second-moment measurement. Saturated or insufficient-contrast images
+produce a diagnostic rather than a fitted ellipse. Press P again to return to
+the previous array-fitting mode. Profiler calculations currently run on the CPU.
+
 ### Simulated camera
 
 `--sim` (or having no camera connected) renders a fixed grid of Gaussian spots

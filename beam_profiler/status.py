@@ -17,6 +17,7 @@ def viewer_status(viewer) -> dict:
         "roi": viewer.camera.ROI,
         "auto_exposure": viewer.auto_exp,
         "fitting_enabled": viewer.do_fitting,
+        "profiler_enabled": getattr(viewer, 'profiler_enabled', False),
         "rect_sensor": viewer.rect_sensor,
         "fit_rect_sensor": viewer.fit_rect_sensor,
     }
