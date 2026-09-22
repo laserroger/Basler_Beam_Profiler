@@ -238,6 +238,13 @@ class FlirCamera(Camera):
         self._float("Gain", value)
 
     @property
+    def roi_constraints(self):
+        """Minimum and increment for each ROI component; no camera mutation."""
+        return tuple((int(n.GetMin()), int(n.GetInc())) for n in
+                     (self._node(name, "Integer") for name in
+                      ("Width", "Height", "OffsetX", "OffsetY")))
+
+    @property
     def ROI(self):
         return tuple(int(self._node(n, "Integer").GetValue())
                      for n in ("Width", "Height", "OffsetX", "OffsetY"))

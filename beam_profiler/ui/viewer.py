@@ -5,6 +5,7 @@ Keyboard shortcuts are listed in the README."""
 from __future__ import annotations
 
 import logging
+from collections import deque
 import os
 import sys
 import time
@@ -45,6 +46,8 @@ class Viewer:
     def __init__(self, cameras: list):
         self._quit_requested = False
         self._native_close_handler = None
+        self._native_key_monitor = None
+        self._pending_keys = deque()
         self.cameras = cameras
         self.curr_idx = 0
         self.camera = cameras[0]
@@ -89,8 +92,9 @@ class Viewer:
         cv2.resizeWindow(WINDOW, WINDOW_SIZE, WINDOW_SIZE)
         cv2.setMouseCallback(WINDOW, self.on_mouse)
         if sys.platform == "darwin":
-            from .macos import attach_close_button
+            from .macos import attach_close_button, attach_key_monitor
             self._native_close_handler = attach_close_button(WINDOW, self.request_close)
+            self._native_key_monitor = attach_key_monitor(WINDOW, self._pending_keys.append)
 
     def request_close(self):
         self._quit_requested = True
@@ -104,6 +108,7 @@ class Viewer:
     @auto_exp.setter
     def auto_exp(self, value):
         self._auto_exp = value
+        self._exposure_request = None
         if value:
             self.camera.AutoExposureOn(range=(MIN_EXPOSURE_US, MAX_EXPOSURE_US))
         else:
@@ -119,6 +124,10 @@ class Viewer:
         try:
             self._run_loop(max_frames=max_frames)
         finally:
+            if self._native_key_monitor is not None:
+                from .macos import remove_key_monitor
+                remove_key_monitor(self._native_key_monitor)
+                self._native_key_monitor = None
             cv2.destroyAllWindows()
             settings.destroy_settings()
 
@@ -133,7 +142,7 @@ class Viewer:
             t0 = time.time()
             frame = self.camera.grab_image()
             if frame is None:
-                if not self._handle_key(cv2.waitKeyEx(10)):
+                if not self._poll_keys(10):
                     break
                 continue
             self.current_frame = frame
@@ -161,7 +170,7 @@ class Viewer:
 
             disp = self._compose(frame_disp, spots)
             cv2.imshow(WINDOW, disp)
-            if not self._handle_key(cv2.waitKeyEx(1)):
+            if not self._poll_keys(1):
                 break
             frame_count += 1
             if max_frames is not None and frame_count >= max_frames:
@@ -244,7 +253,7 @@ class Viewer:
         view = self.view
         if not view.contains(*self._mouse_display):
             return None
-        sx, sy = (int(v) for v in view.to_sensor(*self._mouse_display))
+        sx, sy = (int(np.floor(v + 0.5)) for v in view.to_sensor(*self._mouse_display))
         x, y = sx - view.ox, sy - view.oy
         h, w = self.current_frame.shape[:2]
         if not (0 <= x < w and 0 <= y < h):
@@ -359,23 +368,52 @@ class Viewer:
         view = self.view
         if not view.contains(*self._mouse_display):
             return
-        anchor = view.to_sensor(*self._mouse_display)
-        # Start from the actual ROI, including the camera's size increments.
-        w, h, ox, oy = self.camera.ROI
+        actual = tuple(self.camera.ROI)
         model = self.roi_model
-        model.scale, model.aspect = w / model.full_w, w / h
-        model.cx, model.cy = ox + w / 2, oy + h / 2
+        now = time.monotonic()
+        # Keep fractional zoom requests rather than discarding them whenever
+        # the camera rounds a size to its hardware increment.
+        if (getattr(self, '_scroll_camera', None) is not self.camera
+                or getattr(self, '_scroll_roi', None) != actual):
+            w, h, ox, oy = actual
+            model.scale, model.aspect = w / model.full_w, w / h
+            model.cx, model.cy = ox + w / 2, oy + h / 2
+            self._scroll_anchor = None
+        if (getattr(self, '_scroll_anchor', None) is None
+                or getattr(self, '_scroll_pointer', None) != self._mouse_display
+                or now - getattr(self, '_scroll_time', 0) > 0.3):
+            self._scroll_anchor = view.to_sensor(*self._mouse_display)
+        anchor = self._scroll_anchor
         if aspect:
             model.keep_point_fixed(
                 *anchor, new_aspect=model.aspect * np.exp(-np.clip(aspect, -0.35, 0.35)))
         if zoom:
-            model.keep_point_fixed(
-                *anchor, new_scale=model.scale * np.exp(-np.clip(zoom, -0.35, 0.35)))
-        requested = model.tuple
-        if requested != self.camera.ROI:
+            model.scale = float(np.clip(model.scale * np.exp(-np.clip(zoom, -0.35, 0.35)), .02, 1.0))
+        limits = getattr(self.camera, 'roi_constraints', ((1, 1), (1, 1), (0, 1), (0, 1)))
+
+        def aligned(value, limit, maximum):
+            minimum, increment = limit
+            last = minimum + ((maximum - minimum) // increment) * increment
+            return int(np.clip(minimum + np.rint((value - minimum) / increment) * increment,
+                               minimum, last))
+
+        # Align dimensions FIRST, then anchor using the actual display mapping.
+        # Anchoring before camera rounding moves the beam at high magnification.
+        w, h = model.size
+        w = aligned(w, limits[0], model.full_w)
+        h = aligned(h, limits[1], model.full_h)
+        target_view = ViewTransform((w, h, 0, 0), WINDOW_SIZE)
+        local = target_view.to_sensor(*self._mouse_display)
+        ox = aligned(anchor[0] - local[0], limits[2], model.full_w - w)
+        oy = aligned(anchor[1] - local[1], limits[3], model.full_h - h)
+        requested = (w, h, ox, oy)
+        if requested != actual:
             self.camera.ROI = requested
-            # The old frame no longer corresponds to the current sensor ROI.
             self.current_frame = None
+        self._scroll_roi = tuple(self.camera.ROI)
+        self._scroll_camera = self.camera
+        self._scroll_pointer = self._mouse_display
+        self._scroll_time = now
 
     def on_mouse(self, event, x, y, flags, _param):
         if event in (cv2.EVENT_MOUSEWHEEL, cv2.EVENT_MOUSEHWHEEL):
@@ -402,7 +440,7 @@ class Viewer:
         view = self.view
         if view.contains(x, y):
             sx, sy = view.to_sensor(x, y)
-            self.last_mouse = (int(sx), int(sy))
+            self.last_mouse = (int(np.floor(sx + 0.5)), int(np.floor(sy + 0.5)))
         ctrl = flags & (cv2.EVENT_FLAG_CTRLKEY | cv2.EVENT_FLAG_SHIFTKEY)
 
         if event == cv2.EVENT_LBUTTONDOWN and view.contains(x, y):
@@ -475,14 +513,36 @@ class Viewer:
             write_status(self)
         return True
 
+    def _poll_keys(self, delay):
+        key = cv2.waitKeyEx(delay)
+        if key != -1:
+            self._pending_keys.append(key)
+        while self._pending_keys:
+            if not self._handle_key(self._pending_keys.popleft()):
+                return False
+        return True
+
     def _adjust_exposure(self, factor: float):
         if self.auto_exp:
             return
-        self.exposure_us = int(
-            np.clip(self.camera.ExposureTime * factor, MIN_EXPOSURE_US, MAX_EXPOSURE_US)
-        )
-        self.camera.ExposureTime = self.exposure_us
-        self.exposure_us = self.camera.ExposureTime
+        actual = float(self.camera.ExposureTime)
+        direction = 1 if factor > 1 else -1
+        target = getattr(self, '_exposure_request', None)
+        if (target is None or getattr(self, '_exposure_camera', None) is not self.camera
+                or getattr(self, '_exposure_readback', None) != actual
+                or getattr(self, '_exposure_direction', None) != direction):
+            target = actual
+        minimum = max(MIN_EXPOSURE_US, getattr(self.camera, 'min_exposure', MIN_EXPOSURE_US))
+        maximum = min(MAX_EXPOSURE_US, getattr(self.camera, 'max_exposure', MAX_EXPOSURE_US))
+        # Keep fractional requests: hardware may round several successive
+        # requests to the same exposure, especially near its minimum.
+        target = float(np.clip(target * factor, minimum, maximum))
+        self.camera.ExposureTime = target
+        self.exposure_us = float(self.camera.ExposureTime)
+        self._exposure_request = target
+        self._exposure_readback = self.exposure_us
+        self._exposure_camera = self.camera
+        self._exposure_direction = direction
 
     # ------------------------------ actions ------------------------------- #
     def _save_frame(self, jpg_path: str):

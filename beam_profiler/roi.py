@@ -73,6 +73,8 @@ class ViewTransform:
         self.scale = window / max(self.w, self.h)
         self.view_w = int(self.w * self.scale)
         self.view_h = int(self.h * self.scale)
+        self.scale_x = self.view_w / self.w
+        self.scale_y = self.view_h / self.h
         self.pad_l = (window - self.view_w) // 2
         self.pad_t = (window - self.view_h) // 2
 
@@ -82,15 +84,16 @@ class ViewTransform:
         )
 
     def to_sensor(self, disp_x: float, disp_y: float) -> tuple[float, float]:
+        # OpenCV resize maps pixel centers: src = (dst + .5) / scale - .5.
         return (
-            self.ox + (disp_x - self.pad_l) / self.scale,
-            self.oy + (disp_y - self.pad_t) / self.scale,
+            self.ox + (disp_x - self.pad_l + 0.5) / self.scale_x - 0.5,
+            self.oy + (disp_y - self.pad_t + 0.5) / self.scale_y - 0.5,
         )
 
     def to_display(self, sensor_x: float, sensor_y: float) -> tuple[int, int]:
         return (
-            int((sensor_x - self.ox) * self.scale) + self.pad_l,
-            int((sensor_y - self.oy) * self.scale) + self.pad_t,
+            int(np.rint((sensor_x - self.ox + 0.5) * self.scale_x - 0.5)) + self.pad_l,
+            int(np.rint((sensor_y - self.oy + 0.5) * self.scale_y - 0.5)) + self.pad_t,
         )
 
     def roi_to_display(self, x: float, y: float) -> tuple[int, int]:
@@ -100,6 +103,6 @@ class ViewTransform:
     def roi_to_display_many(self, x, y) -> tuple[np.ndarray, np.ndarray]:
         """Vectorised `roi_to_display` for whole spot columns."""
         return (
-            (np.asarray(x) * self.scale).astype(np.int32) + self.pad_l,
-            (np.asarray(y) * self.scale).astype(np.int32) + self.pad_t,
+            np.rint((np.asarray(x) + 0.5) * self.scale_x - 0.5).astype(np.int32) + self.pad_l,
+            np.rint((np.asarray(y) + 0.5) * self.scale_y - 0.5).astype(np.int32) + self.pad_t,
         )

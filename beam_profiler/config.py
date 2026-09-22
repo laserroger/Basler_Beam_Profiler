@@ -34,7 +34,7 @@ APP_DIR = app_dir()
 DATA_DIR = os.path.join(APP_DIR, "data")
 STATUS_JSON_PATH = os.path.join(APP_DIR, "pylon_camera.json")
 
-MIN_EXPOSURE_US = 30
+MIN_EXPOSURE_US = 10
 MAX_EXPOSURE_US = 100_000
 FPS_LIMIT = 60  # UI update limit, frames/s
 WINDOW_SIZE = 1100  # longest display edge, px

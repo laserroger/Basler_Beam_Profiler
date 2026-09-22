@@ -118,6 +118,12 @@ class BaslerCamera(Camera):
         )
 
     @property
+    def roi_constraints(self):
+        return tuple((int(n.Min), int(n.Inc)) for n in
+                     (self.camera.Width, self.camera.Height,
+                      self.camera.OffsetX, self.camera.OffsetY))
+
+    @property
     def ROI(self):
         return (
             self.camera.Width.Value,
