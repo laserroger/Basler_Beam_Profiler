@@ -156,3 +156,24 @@ def test_exact_derivatives_preserve_numerical_solver_result(cx, monkeypatch):
     for field in ['x', 'y', 'sigma_0', 'sigma_1', 'I0']:
         np.testing.assert_allclose(getattr(exact.spots, field), getattr(reference.spots, field), rtol=1e-6, atol=1e-6)
     assert exact.message == reference.message
+
+
+@pytest.mark.parametrize('key', ['f', 'F'])
+@pytest.mark.parametrize('previous_array_state', [False, True])
+def test_f_selects_multibeam_from_profiler_then_toggles_off(key, previous_array_state, monkeypatch):
+    viewer = Viewer.__new__(Viewer)
+    viewer.profiler_enabled = True
+    viewer.profiler_message = 'Gaussian fit'
+    viewer.do_fitting = previous_array_state
+    viewer.latest_spots = fit_single_beam(beam()).spots
+    monkeypatch.setattr('beam_profiler.ui.viewer.write_status', lambda _: None)
+    assert viewer._handle_key(ord(key))
+    assert viewer.do_fitting
+    assert not viewer.profiler_enabled
+    assert not len(viewer.latest_spots)
+    assert viewer.profiler_message == ''
+    assert viewer._handle_key(ord(key))
+    assert not viewer.do_fitting
+    assert not viewer.profiler_enabled
+    assert viewer._handle_key(ord(key))
+    assert viewer.do_fitting

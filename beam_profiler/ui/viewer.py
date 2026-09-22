@@ -484,8 +484,12 @@ class Viewer:
             self.profiler_enabled = not self.profiler_enabled
             self.profiler_message = ''
             self.latest_spots = SpotArray.empty()
-        elif key == ord("f"):
-            self.do_fitting = not self.do_fitting
+        elif key in (ord('f'), ord('F')):
+            # F selects the array fitter even when P currently overrides it.
+            self.do_fitting = True if self.profiler_enabled else not self.do_fitting
+            self.profiler_enabled = False
+            self.profiler_message = ''
+            self.latest_spots = SpotArray.empty()
         elif key == ord("g"):
             self.show_stats = not self.show_stats
         elif key == ord("h"):

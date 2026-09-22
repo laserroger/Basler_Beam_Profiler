@@ -29,7 +29,9 @@ to restrict the fit; press `v` to clear it. The overlay reports 1/e² radii and
 flags beams that reach the region boundary. This is a Gaussian model estimate,
 not an ISO second-moment measurement. Saturated or insufficient-contrast images
 produce a diagnostic rather than a fitted ellipse. Press P again to return to
-the previous array-fitting mode. Profiler calculations currently run on the CPU.
+the previous array-fitting mode. Press `f` or `F` to switch directly to multi-beam
+fitting; press it again to turn multi-beam fitting off. Profiler calculations
+currently run on the CPU.
 
 ### Simulated camera
 

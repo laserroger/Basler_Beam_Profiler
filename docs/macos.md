@@ -58,7 +58,7 @@ are shared by FLIR, Basler and simulated cameras.
 | `a` | Automatic exposure, targeting near saturation |
 | Left/right arrows | Decrease/increase exposure by 10% |
 | Down/up arrows | Divide/multiply exposure by 10 |
-| `f` | Beam detection and 2D Gaussian/moment fitting |
+| `f` / `F` | Switch to multi-beam fitting (exits single-beam mode); press again to turn fitting off |
 | `p` / `P` | Toggle single-beam Gaussian profiler; whole frame or green fitting rectangle |
 | `g` | Beam statistics |
 | `h` | Array row/column statistics |
