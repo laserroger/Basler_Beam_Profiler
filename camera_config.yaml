@@ -1,27 +1,2663 @@
+# Camera sensor catalog verified 2026-09-22. See docs/camera-catalog.md.
+# default_roi: [width, height, offset_x, offset_y]; pixel_size: meters.
+# Model metadata is not a guarantee of driver/interface compatibility.
 cameras:
+  BFS-GE-122S6C-BD: &id105
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-GE-122S6-BD2/latest/Model/spec.html
+  BFS-GE-122S6M-BD: &id106
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-GE-122S6-BD2/latest/Model/spec.html
+  BFS-GE-16S2C-BD: &id107
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-GE-16S2-BD2/latest/Model/spec.html
+  BFS-GE-16S2M-BD: &id108
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-GE-16S2-BD2/latest/Model/spec.html
+  BFS-GE-50S5C-BD: &id109
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-GE-50S5-BD2/latest/Model/spec.html
+  BFS-GE-50S5M-BD: &id110
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-GE-50S5-BD2/latest/Model/spec.html
+  BFS-GE-88S6C-BD: &id111
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-GE-88S6-BD2/latest/Model/spec.html
+  BFS-GE-88S6M-BD: &id112
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-GE-88S6-BD2/latest/Model/spec.html
+  BFS-PGE-04S2C: &id001
+    default_roi: [720, 540, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://softwareservices.flir.com/BFS-PGE-04S2/latest/Model/spec.html
+  BFS-PGE-04S2C-CS: *id001
+  BFS-PGE-04S2M: &id002
+    default_roi: [720, 540, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://softwareservices.flir.com/BFS-PGE-04S2/latest/Model/spec.html
+  BFS-PGE-04S2M-CS: *id002
+  BFS-PGE-120S4C: &id113
+    default_roi: [4000, 3000, 0, 0]
+    pixel_size: 1.85e-06
+    source: https://softwareservices.flir.com/BFS-PGE-120S4/latest/Model/spec.html
+  BFS-PGE-120S4M: &id114
+    default_roi: [4000, 3000, 0, 0]
+    pixel_size: 1.85e-06
+    source: https://softwareservices.flir.com/BFS-PGE-120S4/latest/Model/spec.html
+  BFS-PGE-120S6C: &id003
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-120S6/latest/Model/spec.html
+  BFS-PGE-120S6C-C: *id003
+  BFS-PGE-120S6M: &id004
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-120S6/latest/Model/spec.html
+  BFS-PGE-120S6M-C: *id004
+  BFS-PGE-122S6C: &id005
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-122S6/latest/Model/spec.html
+  BFS-PGE-122S6C-C: *id005
+  BFS-PGE-122S6M: &id006
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-122S6/latest/Model/spec.html
+  BFS-PGE-122S6M-C: *id006
+  BFS-PGE-123S6P: &id007
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-123S6P/latest/Model/spec.html
+  BFS-PGE-123S6P-C: *id007
+  BFS-PGE-13Y3C: &id008
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://softwareservices.flir.com/BFS-PGE-13Y3/latest/Model/spec.html
+  BFS-PGE-13Y3C-C: *id008
+  BFS-PGE-13Y3M: &id009
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://softwareservices.flir.com/BFS-PGE-13Y3/latest/Model/spec.html
+  BFS-PGE-13Y3M-C: *id009
+  BFS-PGE-14Y3M: &id010
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://softwareservices.flir.com/BFS-PGE-14Y3/latest/Model/spec.html
+  BFS-PGE-14Y3M-C: *id010
+  BFS-PGE-161S7C: &id011
+    default_roi: [5320, 3032, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-161S7/latest/Model/spec.html
+  BFS-PGE-161S7C-C: *id011
+  BFS-PGE-161S7M: &id012
+    default_roi: [5320, 3032, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-161S7/latest/Model/spec.html
+  BFS-PGE-161S7M-C: *id012
+  BFS-PGE-16S2C: &id013
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-16S2/latest/Model/spec.html
+  BFS-PGE-16S2C-CS: *id013
+  BFS-PGE-16S2M: &id014
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-16S2/latest/Model/spec.html
+  BFS-PGE-16S2M-CS: *id014
+  BFS-PGE-16S7C: &id015
+    default_roi: [1600, 1100, 0, 0]
+    pixel_size: 9.0e-06
+    source: https://softwareservices.flir.com/BFS-PGE-16S7/latest/Model/spec.html
+  BFS-PGE-16S7C-C: *id015
+  BFS-PGE-16S7M: &id016
+    default_roi: [1600, 1100, 0, 0]
+    pixel_size: 9.0e-06
+    source: https://softwareservices.flir.com/BFS-PGE-16S7/latest/Model/spec.html
+  BFS-PGE-16S7M-C: *id016
+  BFS-PGE-19S4C: &id017
+    default_roi: [1616, 1240, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-PGE-19S4/latest/Model/spec.html
+  BFS-PGE-19S4C-C: *id017
+  BFS-PGE-19S4M: &id018
+    default_roi: [1616, 1240, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-PGE-19S4/latest/Model/spec.html
+  BFS-PGE-19S4M-C: *id018
+  BFS-PGE-200S6C: &id019
+    default_roi: [5472, 3648, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-200S6/latest/Model/spec.html
+  BFS-PGE-200S6C-C: *id019
+  BFS-PGE-200S6M: &id020
+    default_roi: [5472, 3648, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-200S6/latest/Model/spec.html
+  BFS-PGE-200S6M-C: *id020
+  BFS-PGE-200S7C: &id021
+    default_roi: [4504, 4504, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-200S7/latest/Model/spec.html
+  BFS-PGE-200S7C-C: *id021
+  BFS-PGE-200S7M: &id022
+    default_roi: [4504, 4504, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-200S7/latest/Model/spec.html
+  BFS-PGE-200S7M-C: *id022
+  BFS-PGE-23S3C: &id115
+    default_roi: [1920, 1200, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-23S3/latest/Model/spec.html
+  BFS-PGE-23S3M: &id116
+    default_roi: [1920, 1200, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-23S3/latest/Model/spec.html
+  BFS-PGE-23S6C: &id023
+    default_roi: [1920, 1200, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://softwareservices.flir.com/BFS-PGE-23S6/latest/Model/spec.html
+  BFS-PGE-23S6C-C: *id023
+  BFS-PGE-23S6M: &id024
+    default_roi: [1920, 1200, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://softwareservices.flir.com/BFS-PGE-23S6/latest/Model/spec.html
+  BFS-PGE-23S6M-C: *id024
+  BFS-PGE-244S8C: &id025
+    default_roi: [5320, 4600, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-244S8/latest/Model/spec.html
+  BFS-PGE-244S8C-C: *id025
+  BFS-PGE-244S8M: &id026
+    default_roi: [5320, 4600, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-244S8/latest/Model/spec.html
+  BFS-PGE-244S8M-C: *id026
+  BFS-PGE-27S5C: &id027
+    default_roi: [1936, 1464, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-PGE-27S5/latest/Model/spec.html
+  BFS-PGE-27S5C-C: *id027
+  BFS-PGE-27S5M: &id028
+    default_roi: [1936, 1464, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-PGE-27S5/latest/Model/spec.html
+  BFS-PGE-27S5M-C: *id028
+  BFS-PGE-31S4C: &id029
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-31S4/latest/Model/spec.html
+  BFS-PGE-31S4C-C: *id029
+  BFS-PGE-31S4M: &id030
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-31S4/latest/Model/spec.html
+  BFS-PGE-31S4M-C: *id030
+  BFS-PGE-50S4C: &id031
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-50S4/latest/Model/spec.html
+  BFS-PGE-50S4C-C: *id031
+  BFS-PGE-50S4M: &id032
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-50S4/latest/Model/spec.html
+  BFS-PGE-50S4M-C: *id032
+  BFS-PGE-50S5C: &id033
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-50S5/latest/Model/spec.html
+  BFS-PGE-50S5C-C: *id033
+  BFS-PGE-50S5M: &id034
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-50S5/latest/Model/spec.html
+  BFS-PGE-50S5M-C: *id034
+  BFS-PGE-51S5P: &id035
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-51S5/latest/Model/spec.html
+  BFS-PGE-51S5P-C: *id035
+  BFS-PGE-51S5PC: &id036
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-51S5/latest/Model/spec.html
+  BFS-PGE-51S5PC-C: *id036
+  BFS-PGE-63S4C: &id037
+    default_roi: [3072, 2048, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://softwareservices.flir.com/BFS-PGE-63S4/latest/Model/spec.html
+  BFS-PGE-63S4C-C: *id037
+  BFS-PGE-63S4M: &id038
+    default_roi: [3072, 2048, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://softwareservices.flir.com/BFS-PGE-63S4/latest/Model/spec.html
+  BFS-PGE-63S4M-C: *id038
+  BFS-PGE-70S7C: &id039
+    default_roi: [3208, 2200, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-PGE-70S7/latest/Model/spec.html
+  BFS-PGE-70S7C-C: *id039
+  BFS-PGE-70S7M: &id040
+    default_roi: [3208, 2200, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-PGE-70S7/latest/Model/spec.html
+  BFS-PGE-70S7M-C: *id040
+  BFS-PGE-80S5C: &id041
+    default_roi: [2840, 2840, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-80S5/latest/Model/spec.html
+  BFS-PGE-80S5C-C: *id041
+  BFS-PGE-80S5M: &id042
+    default_roi: [2840, 2840, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-PGE-80S5/latest/Model/spec.html
+  BFS-PGE-80S5M-C: *id042
+  BFS-PGE-88S6C: &id043
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-88S6/latest/Model/spec.html
+  BFS-PGE-88S6C-C: *id043
+  BFS-PGE-88S6M: &id044
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-PGE-88S6/latest/Model/spec.html
+  BFS-PGE-88S6M-C: *id044
+  BFS-U3-04S2C: &id045
+    default_roi: [720, 540, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://softwareservices.flir.com/BFS-U3-04S2/latest/Model/spec.html
+  BFS-U3-04S2C-CS: *id045
+  BFS-U3-04S2M: &id046
+    default_roi: [720, 540, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://softwareservices.flir.com/BFS-U3-04S2/latest/Model/spec.html
+  BFS-U3-04S2M-CS: *id046
+  BFS-U3-120S4C: &id047
+    default_roi: [4000, 3000, 0, 0]
+    pixel_size: 1.85e-06
+    source: https://softwareservices.flir.com/BFS-U3-120S4/latest/Model/spec.html
+  BFS-U3-120S4C-CS: *id047
+  BFS-U3-120S4M: &id048
+    default_roi: [4000, 3000, 0, 0]
+    pixel_size: 1.85e-06
+    source: https://softwareservices.flir.com/BFS-U3-120S4/latest/Model/spec.html
+  BFS-U3-120S4M-CS: *id048
+  BFS-U3-120S6C: &id049
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-120S6/latest/Model/spec.html
+  BFS-U3-120S6C-BD2: &id117
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-120S6-BD2/latest/Model/spec.html
+  BFS-U3-120S6C-C: *id049
+  BFS-U3-120S6M: &id050
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-120S6/latest/Model/spec.html
+  BFS-U3-120S6M-BD2: &id118
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-120S6-BD2/latest/Model/spec.html
+  BFS-U3-120S6M-C: *id050
+  BFS-U3-122S6C: &id051
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-122S6/latest/Model/spec.html
+  BFS-U3-122S6C-BD: &id119
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-122S6-BD2/latest/Model/spec.html
+  BFS-U3-122S6C-C: *id051
+  BFS-U3-122S6M: &id052
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-122S6/latest/Model/spec.html
+  BFS-U3-122S6M-BD: &id120
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-122S6-BD2/latest/Model/spec.html
+  BFS-U3-122S6M-C: *id052
+  BFS-U3-123S6C: &id053
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-123S6/latest/Model/spec.html
+  BFS-U3-123S6C-C: *id053
+  BFS-U3-123S6M: &id054
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-123S6/latest/Model/spec.html
+  BFS-U3-123S6M-C: *id054
+  BFS-U3-13Y3C: &id055
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://softwareservices.flir.com/BFS-U3-13Y3/latest/Model/spec.html
+  BFS-U3-13Y3C-C: *id055
+  BFS-U3-13Y3M: &id056
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://softwareservices.flir.com/BFS-U3-13Y3/latest/Model/spec.html
+  BFS-U3-13Y3M-C: *id056
+  BFS-U3-161S7C: &id057
+    default_roi: [5320, 3032, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-161S7/latest/Model/spec.html
+  BFS-U3-161S7C-C: *id057
+  BFS-U3-161S7M: &id058
+    default_roi: [5320, 3032, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-161S7/latest/Model/spec.html
+  BFS-U3-161S7M-C: *id058
+  BFS-U3-16S2C: &id059
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-16S2/latest/Model/spec.html
+  BFS-U3-16S2C-BD: &id121
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-16S2-BD2/latest/Model/spec.html
+  BFS-U3-16S2C-CS: *id059
+  BFS-U3-16S2M: &id060
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-16S2/latest/Model/spec.html
+  BFS-U3-16S2M-BD: &id122
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-16S2-BD2/latest/Model/spec.html
+  BFS-U3-16S2M-CS: *id060
+  BFS-U3-16S7C: &id061
+    default_roi: [1600, 1100, 0, 0]
+    pixel_size: 9.0e-06
+    source: https://softwareservices.flir.com/BFS-U3-16S7/latest/Model/spec.html
+  BFS-U3-16S7C-C: *id061
+  BFS-U3-16S7M: &id062
+    default_roi: [1600, 1100, 0, 0]
+    pixel_size: 9.0e-06
+    source: https://softwareservices.flir.com/BFS-U3-16S7/latest/Model/spec.html
+  BFS-U3-16S7M-C: *id062
+  BFS-U3-17S7C: &id063
+    default_roi: [1600, 1100, 0, 0]
+    pixel_size: 9.0e-06
+    source: https://softwareservices.flir.com/BFS-U3-17S7/latest/Model/spec.html
+  BFS-U3-17S7C-C: *id063
+  BFS-U3-17S7M: &id064
+    default_roi: [1600, 1100, 0, 0]
+    pixel_size: 9.0e-06
+    source: https://softwareservices.flir.com/BFS-U3-17S7/latest/Model/spec.html
+  BFS-U3-17S7M-C: *id064
+  BFS-U3-19S4C: &id065
+    default_roi: [1616, 1240, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-19S4/latest/Model/spec.html
+  BFS-U3-19S4C-C: *id065
+  BFS-U3-19S4M: &id066
+    default_roi: [1616, 1240, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-19S4/latest/Model/spec.html
+  BFS-U3-19S4M-C: *id066
+  BFS-U3-200S6C: &id067
+    default_roi: [5472, 3648, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://softwareservices.flir.com/BFS-U3-200S6/latest/Model/spec.html
+  BFS-U3-200S6C-BD: &id123
+    default_roi: [5472, 3648, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://softwareservices.flir.com/BFS-U3-200S6-BD2/latest/Model/spec.html
+  BFS-U3-200S6C-C: *id067
+  BFS-U3-200S6M: &id068
+    default_roi: [5472, 3648, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://softwareservices.flir.com/BFS-U3-200S6/latest/Model/spec.html
+  BFS-U3-200S6M-BD: &id124
+    default_roi: [5472, 3648, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://softwareservices.flir.com/BFS-U3-200S6-BD2/latest/Model/spec.html
+  BFS-U3-200S6M-C: *id068
+  BFS-U3-200S7C: &id069
+    default_roi: [4504, 4504, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-200S7/latest/Model/spec.html
+  BFS-U3-200S7C-C: *id069
+  BFS-U3-200S7M: &id070
+    default_roi: [4504, 4504, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-200S7/latest/Model/spec.html
+  BFS-U3-200S7M-C: *id070
+  BFS-U3-20S4C: &id071
+    default_roi: [1616, 1240, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-20S4/latest/Model/spec.html
+  BFS-U3-20S4C-C: *id071
+  BFS-U3-20S4M: &id072
+    default_roi: [1616, 1240, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-20S4/latest/Model/spec.html
+  BFS-U3-20S4M-C: *id072
+  BFS-U3-23S3C: &id073
+    default_roi: [1920, 1200, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-23S3/latest/Model/spec.html
+  BFS-U3-23S3C-C: *id073
+  BFS-U3-23S3M: &id074
+    default_roi: [1920, 1200, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-23S3/latest/Model/spec.html
+  BFS-U3-23S3M-C: *id074
+  BFS-U3-23S6C: &id075
+    default_roi: [1920, 1200, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://softwareservices.flir.com/BFS-U3-23S6/latest/Model/spec.html
+  BFS-U3-23S6C-C: *id075
+  BFS-U3-23S6M: &id076
+    default_roi: [1920, 1200, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://softwareservices.flir.com/BFS-U3-23S6/latest/Model/spec.html
+  BFS-U3-23S6M-C: *id076
+  BFS-U3-244S8C: &id077
+    default_roi: [5320, 4600, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-244S8/latest/Model/spec.html
+  BFS-U3-244S8C-C: *id077
+  BFS-U3-244S8M: &id078
+    default_roi: [5320, 4600, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-244S8/latest/Model/spec.html
+  BFS-U3-244S8M-C: *id078
+  BFS-U3-27S5C: &id079
+    default_roi: [1936, 1464, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-27S5/latest/Model/spec.html
+  BFS-U3-27S5C-C: *id079
+  BFS-U3-27S5M: &id080
+    default_roi: [1936, 1464, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-27S5/latest/Model/spec.html
+  BFS-U3-27S5M-C: *id080
+  BFS-U3-28S5C: &id081
+    default_roi: [1936, 1464, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-28S5/latest/Model/spec.html
+  BFS-U3-28S5C-BD: &id125
+    default_roi: [1936, 1464, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-28S5-BD2/latest/Model/spec.html
+  BFS-U3-28S5C-C: *id081
+  BFS-U3-28S5M: &id082
+    default_roi: [1936, 1464, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-28S5/latest/Model/spec.html
+  BFS-U3-28S5M-BD: &id126
+    default_roi: [1936, 1464, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-28S5-BD2/latest/Model/spec.html
+  BFS-U3-28S5M-C: *id082
+  BFS-U3-31S4C: &id083
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-31S4/latest/Model/spec.html
+  BFS-U3-31S4C-BD: &id127
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-31S4-BD2/latest/Model/spec.html
+  BFS-U3-31S4C-C: *id083
+  BFS-U3-31S4M: &id084
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-31S4/latest/Model/spec.html
+    sync:
+      exposure_line: Line1
+      user_line: Line2
+      user_output: UserOutput0
+  BFS-U3-31S4M-BD: &id128
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-31S4-BD2/latest/Model/spec.html
+  BFS-U3-31S4M-C: *id084
+  BFS-U3-32S4C: &id085
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-32S4/latest/Model/spec.html
+  BFS-U3-32S4C-BD: &id129
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-32S4-BD2/latest/Model/spec.html
+  BFS-U3-32S4C-C: *id085
+  BFS-U3-32S4M: &id086
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-32S4/latest/Model/spec.html
+  BFS-U3-32S4M-BD: &id130
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-32S4-BD2/latest/Model/spec.html
+  BFS-U3-32S4M-C: *id086
+  BFS-U3-50S4C: &id087
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-50S4/latest/Model/spec.html
+  BFS-U3-50S4C-BD: &id131
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-50S4-BD2/latest/Model/spec.html
+  BFS-U3-50S4C-C: *id087
+  BFS-U3-50S4M: &id088
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-50S4/latest/Model/spec.html
+  BFS-U3-50S4M-BD: &id132
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-50S4-BD2/latest/Model/spec.html
+  BFS-U3-50S4M-C: *id088
+  BFS-U3-50S5C: &id089
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-50S5/latest/Model/spec.html
+  BFS-U3-50S5C-BD: &id133
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-50S5-BD2/latest/Model/spec.html
+  BFS-U3-50S5C-C: *id089
+  BFS-U3-50S5M: &id090
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-50S5/latest/Model/spec.html
+  BFS-U3-50S5M-BD: &id134
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-50S5-BD2/latest/Model/spec.html
+  BFS-U3-50S5M-C: *id090
+  BFS-U3-51S5C: &id091
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-51S5/latest/Model/spec.html
+  BFS-U3-51S5C-BD: &id135
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-51S5-BD2/latest/Model/spec.html
+  BFS-U3-51S5C-C: *id091
+  BFS-U3-51S5M: &id092
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-51S5/latest/Model/spec.html
+  BFS-U3-51S5M-BD: &id136
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-51S5-BD2/latest/Model/spec.html
+  BFS-U3-51S5M-C: *id092
+  BFS-U3-51S5P: &id093
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-51S5P/latest/Model/spec.html
+  BFS-U3-51S5P-C: *id093
+  BFS-U3-51S5PC: &id094
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-51S5PC/latest/Model/spec.html
+  BFS-U3-51S5PC-C: *id094
+  BFS-U3-63S4C: &id095
+    default_roi: [3072, 2048, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://softwareservices.flir.com/BFS-U3-63S4/latest/Model/spec.html
+  BFS-U3-63S4C-BD: &id137
+    default_roi: [3072, 2048, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://softwareservices.flir.com/BFS-U3-63S4-BD2/latest/Model/spec.html
+  BFS-U3-63S4C-C: *id095
+  BFS-U3-63S4M: &id096
+    default_roi: [3072, 2048, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://softwareservices.flir.com/BFS-U3-63S4/latest/Model/spec.html
+  BFS-U3-63S4M-BD: &id138
+    default_roi: [3072, 2048, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://softwareservices.flir.com/BFS-U3-63S4-BD2/latest/Model/spec.html
+  BFS-U3-63S4M-C: *id096
+  BFS-U3-70S7C: &id097
+    default_roi: [3208, 2200, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-70S7/latest/Model/spec.html
+  BFS-U3-70S7C-C: *id097
+  BFS-U3-70S7M: &id098
+    default_roi: [3208, 2200, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/BFS-U3-70S7/latest/Model/spec.html
+  BFS-U3-70S7M-C: *id098
+  BFS-U3-80S5C: &id099
+    default_roi: [2840, 2840, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-80S5/latest/Model/spec.html
+  BFS-U3-80S5C-C: *id099
+  BFS-U3-80S5M: &id100
+    default_roi: [2840, 2840, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/BFS-U3-80S5/latest/Model/spec.html
+  BFS-U3-80S5M-C: *id100
+  BFS-U3-88S6C: &id101
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-88S6/latest/Model/spec.html
+  BFS-U3-88S6C-BD: &id139
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-88S6-BD2/latest/Model/spec.html
+  BFS-U3-88S6C-C: *id101
+  BFS-U3-88S6M: &id102
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-88S6/latest/Model/spec.html
+  BFS-U3-88S6M-BD: &id140
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-88S6-BD2/latest/Model/spec.html
+  BFS-U3-88S6M-C: *id102
+  BFS-U3-89S6C: &id103
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-89S6/latest/Model/spec.html
+  BFS-U3-89S6C-C: *id103
+  BFS-U3-89S6M: &id104
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/BFS-U3-89S6/latest/Model/spec.html
+  BFS-U3-89S6M-C: *id104
+  Blackfly S BFS-GE-122S6C-BD: *id105
+  Blackfly S BFS-GE-122S6M-BD: *id106
+  Blackfly S BFS-GE-16S2C-BD: *id107
+  Blackfly S BFS-GE-16S2M-BD: *id108
+  Blackfly S BFS-GE-50S5C-BD: *id109
+  Blackfly S BFS-GE-50S5M-BD: *id110
+  Blackfly S BFS-GE-88S6C-BD: *id111
+  Blackfly S BFS-GE-88S6M-BD: *id112
+  Blackfly S BFS-PGE-04S2C: *id001
+  Blackfly S BFS-PGE-04S2M: *id002
+  Blackfly S BFS-PGE-120S4C: *id113
+  Blackfly S BFS-PGE-120S4M: *id114
+  Blackfly S BFS-PGE-120S6C: *id003
+  Blackfly S BFS-PGE-120S6M: *id004
+  Blackfly S BFS-PGE-122S6C: *id005
+  Blackfly S BFS-PGE-122S6M: *id006
+  Blackfly S BFS-PGE-123S6P: *id007
+  Blackfly S BFS-PGE-13Y3C: *id008
+  Blackfly S BFS-PGE-13Y3M: *id009
+  Blackfly S BFS-PGE-14Y3M: *id010
+  Blackfly S BFS-PGE-161S7C: *id011
+  Blackfly S BFS-PGE-161S7M: *id012
+  Blackfly S BFS-PGE-16S2C: *id013
+  Blackfly S BFS-PGE-16S2M: *id014
+  Blackfly S BFS-PGE-16S7C: *id015
+  Blackfly S BFS-PGE-16S7M: *id016
+  Blackfly S BFS-PGE-19S4C: *id017
+  Blackfly S BFS-PGE-19S4M: *id018
+  Blackfly S BFS-PGE-200S6C: *id019
+  Blackfly S BFS-PGE-200S6M: *id020
+  Blackfly S BFS-PGE-200S7C: *id021
+  Blackfly S BFS-PGE-200S7M: *id022
+  Blackfly S BFS-PGE-23S3C: *id115
+  Blackfly S BFS-PGE-23S3M: *id116
+  Blackfly S BFS-PGE-23S6C: *id023
+  Blackfly S BFS-PGE-23S6M: *id024
+  Blackfly S BFS-PGE-244S8C: *id025
+  Blackfly S BFS-PGE-244S8M: *id026
+  Blackfly S BFS-PGE-27S5C: *id027
+  Blackfly S BFS-PGE-27S5M: *id028
+  Blackfly S BFS-PGE-31S4C: *id029
+  Blackfly S BFS-PGE-31S4M: *id030
+  Blackfly S BFS-PGE-50S4C: *id031
+  Blackfly S BFS-PGE-50S4M: *id032
+  Blackfly S BFS-PGE-50S5C: *id033
+  Blackfly S BFS-PGE-50S5M: *id034
+  Blackfly S BFS-PGE-51S5P: *id035
+  Blackfly S BFS-PGE-51S5PC: *id036
+  Blackfly S BFS-PGE-63S4C: *id037
+  Blackfly S BFS-PGE-63S4M: *id038
+  Blackfly S BFS-PGE-70S7C: *id039
+  Blackfly S BFS-PGE-70S7M: *id040
+  Blackfly S BFS-PGE-80S5C: *id041
+  Blackfly S BFS-PGE-80S5M: *id042
+  Blackfly S BFS-PGE-88S6C: *id043
+  Blackfly S BFS-PGE-88S6M: *id044
+  Blackfly S BFS-U3-04S2C: *id045
+  Blackfly S BFS-U3-04S2M: *id046
+  Blackfly S BFS-U3-120S4C: *id047
+  Blackfly S BFS-U3-120S4M: *id048
+  Blackfly S BFS-U3-120S6C: *id049
+  Blackfly S BFS-U3-120S6C-BD2: *id117
+  Blackfly S BFS-U3-120S6M: *id050
+  Blackfly S BFS-U3-120S6M-BD2: *id118
+  Blackfly S BFS-U3-122S6C: *id051
+  Blackfly S BFS-U3-122S6C-BD: *id119
+  Blackfly S BFS-U3-122S6M: *id052
+  Blackfly S BFS-U3-122S6M-BD: *id120
+  Blackfly S BFS-U3-123S6C: *id053
+  Blackfly S BFS-U3-123S6M: *id054
+  Blackfly S BFS-U3-13Y3C: *id055
+  Blackfly S BFS-U3-13Y3M: *id056
+  Blackfly S BFS-U3-161S7C: *id057
+  Blackfly S BFS-U3-161S7M: *id058
+  Blackfly S BFS-U3-16S2C: *id059
+  Blackfly S BFS-U3-16S2C-BD: *id121
+  Blackfly S BFS-U3-16S2M: *id060
+  Blackfly S BFS-U3-16S2M-BD: *id122
+  Blackfly S BFS-U3-16S7C: *id061
+  Blackfly S BFS-U3-16S7M: *id062
+  Blackfly S BFS-U3-17S7C: *id063
+  Blackfly S BFS-U3-17S7M: *id064
+  Blackfly S BFS-U3-19S4C: *id065
+  Blackfly S BFS-U3-19S4M: *id066
+  Blackfly S BFS-U3-200S6C: *id067
+  Blackfly S BFS-U3-200S6C-BD: *id123
+  Blackfly S BFS-U3-200S6M: *id068
+  Blackfly S BFS-U3-200S6M-BD: *id124
+  Blackfly S BFS-U3-200S7C: *id069
+  Blackfly S BFS-U3-200S7M: *id070
+  Blackfly S BFS-U3-20S4C: *id071
+  Blackfly S BFS-U3-20S4M: *id072
+  Blackfly S BFS-U3-23S3C: *id073
+  Blackfly S BFS-U3-23S3M: *id074
+  Blackfly S BFS-U3-23S6C: *id075
+  Blackfly S BFS-U3-23S6M: *id076
+  Blackfly S BFS-U3-244S8C: *id077
+  Blackfly S BFS-U3-244S8M: *id078
+  Blackfly S BFS-U3-27S5C: *id079
+  Blackfly S BFS-U3-27S5M: *id080
+  Blackfly S BFS-U3-28S5C: *id081
+  Blackfly S BFS-U3-28S5C-BD: *id125
+  Blackfly S BFS-U3-28S5M: *id082
+  Blackfly S BFS-U3-28S5M-BD: *id126
+  Blackfly S BFS-U3-31S4C: *id083
+  Blackfly S BFS-U3-31S4C-BD: *id127
+  Blackfly S BFS-U3-31S4M: *id084
+  Blackfly S BFS-U3-31S4M-BD: *id128
+  Blackfly S BFS-U3-32S4C: *id085
+  Blackfly S BFS-U3-32S4C-BD: *id129
+  Blackfly S BFS-U3-32S4M: *id086
+  Blackfly S BFS-U3-32S4M-BD: *id130
+  Blackfly S BFS-U3-50S4C: *id087
+  Blackfly S BFS-U3-50S4C-BD: *id131
+  Blackfly S BFS-U3-50S4M: *id088
+  Blackfly S BFS-U3-50S4M-BD: *id132
+  Blackfly S BFS-U3-50S5C: *id089
+  Blackfly S BFS-U3-50S5C-BD: *id133
+  Blackfly S BFS-U3-50S5M: *id090
+  Blackfly S BFS-U3-50S5M-BD: *id134
+  Blackfly S BFS-U3-51S5C: *id091
+  Blackfly S BFS-U3-51S5C-BD: *id135
+  Blackfly S BFS-U3-51S5M: *id092
+  Blackfly S BFS-U3-51S5M-BD: *id136
+  Blackfly S BFS-U3-51S5P: *id093
+  Blackfly S BFS-U3-51S5PC: *id094
+  Blackfly S BFS-U3-63S4C: *id095
+  Blackfly S BFS-U3-63S4C-BD: *id137
+  Blackfly S BFS-U3-63S4M: *id096
+  Blackfly S BFS-U3-63S4M-BD: *id138
+  Blackfly S BFS-U3-70S7C: *id097
+  Blackfly S BFS-U3-70S7M: *id098
+  Blackfly S BFS-U3-80S5C: *id099
+  Blackfly S BFS-U3-80S5M: *id100
+  Blackfly S BFS-U3-88S6C: *id101
+  Blackfly S BFS-U3-88S6C-BD: *id139
+  Blackfly S BFS-U3-88S6M: *id102
+  Blackfly S BFS-U3-88S6M-BD: *id140
+  Blackfly S BFS-U3-89S6C: *id103
+  Blackfly S BFS-U3-89S6M: *id104
+  DR-U3-50S4C: &id141
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/DR-U3-50S4/latest/Model/spec.html
+  DR-U3-50S4M: &id142
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/DR-U3-50S4/latest/Model/spec.html
+  DR-U3-50Y2C: &id143
+    default_roi: [2592, 1944, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://softwareservices.flir.com/DR-U3-50Y2/latest/Model/spec.html
+  DR-U3-50Y2M: &id144
+    default_roi: [2592, 1944, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://softwareservices.flir.com/DR-U3-50Y2/latest/Model/spec.html
+  Dragonfly S DR-U3-50S4C: *id141
+  Dragonfly S DR-U3-50S4M: *id142
+  Dragonfly S DR-U3-50Y2C: *id143
+  Dragonfly S DR-U3-50Y2M: *id144
+  FFY-U3-04S2C: &id155
+    default_roi: [720, 540, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://softwareservices.flir.com/FFY-U3-04S2/latest/Model/spec.html
+  FFY-U3-04S2M: &id156
+    default_roi: [720, 540, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://softwareservices.flir.com/FFY-U3-04S2/latest/Model/spec.html
+  FFY-U3-16S2C: &id157
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/FFY-U3-16S2/latest/Model/spec.html
+  FFY-U3-16S2C-DL: &id158
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/FFY-U3-16S2-DL/latest/Model/spec.html
+  FFY-U3-16S2M: &id159
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/FFY-U3-16S2/latest/Model/spec.html
+  FFY-U3-16S2M-DL: &id160
+    default_roi: [1440, 1080, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/FFY-U3-16S2-DL/latest/Model/spec.html
+  FG-P5G-120S6C: &id145
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/FG-P5G-120S6/latest/Model/spec.html
+  FG-P5G-120S6C-C: *id145
+  FG-P5G-120S6M: &id146
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/FG-P5G-120S6/latest/Model/spec.html
+  FG-P5G-120S6M-C: *id146
+  FG-P5G-161S7C: &id147
+    default_roi: [5320, 3032, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/FG-P5G-161S7/latest/Model/spec.html
+  FG-P5G-161S7C-C: *id147
+  FG-P5G-161S7M: &id148
+    default_roi: [5320, 3032, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/FG-P5G-161S7/latest/Model/spec.html
+  FG-P5G-161S7M-C: *id148
+  FG-P5G-244S8C: &id149
+    default_roi: [5328, 4600, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/FG-P5G-244S8/latest/Model/spec.html
+  FG-P5G-244S8C-C: *id149
+  FG-P5G-244S8M: &id150
+    default_roi: [5328, 4600, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/FG-P5G-244S8/latest/Model/spec.html
+  FG-P5G-244S8M-C: *id150
+  FG-P5G-50S4C: &id151
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/FG-P5G-50S4/latest/Model/spec.html
+  FG-P5G-50S4C-C: *id151
+  FG-P5G-50S4M: &id152
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/FG-P5G-50S4/latest/Model/spec.html
+  FG-P5G-50S4M-C: *id152
+  FG-P5G-51S4C: &id153
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/FG-P5G-51S4/latest/Model/spec.html
+  FG-P5G-51S4C-C: *id153
+  FG-P5G-51S4M: &id154
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/FG-P5G-51S4/latest/Model/spec.html
+  FG-P5G-51S4M-C: *id154
+  FG-PGE-13S3S-U: &id161
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 5.0e-06
+    source: https://softwareservices.flir.com/FG-PGE-13S3S-U/latest/Model/spec.html
+  Firefly FFY-U3-04S2C: *id155
+  Firefly FFY-U3-04S2M: *id156
+  Firefly FFY-U3-16S2C: *id157
+  Firefly FFY-U3-16S2C-DL: *id158
+  Firefly FFY-U3-16S2M: *id159
+  Firefly FFY-U3-16S2M-DL: *id160
+  Forge FG-P5G-120S6C: *id145
+  Forge FG-P5G-120S6M: *id146
+  Forge FG-P5G-161S7C: *id147
+  Forge FG-P5G-161S7M: *id148
+  Forge FG-P5G-244S8C: *id149
+  Forge FG-P5G-244S8M: *id150
+  Forge FG-P5G-50S4C: *id151
+  Forge FG-P5G-50S4M: *id152
+  Forge FG-P5G-51S4C: *id153
+  Forge FG-P5G-51S4M: *id154
+  Forge FG-PGE-13S3S-U: *id161
+  ORX-10G-123S6C: &id162
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/ORX-10GS-123S6/latest/Model/spec.html
+  ORX-10G-123S6C-C: *id162
+  ORX-10G-123S6M: &id163
+    default_roi: [4096, 3000, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/ORX-10GS-123S6/latest/Model/spec.html
+  ORX-10G-123S6M-C: *id163
+  ORX-10G-245S8C: &id172
+    default_roi: [5320, 4600, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/ORX-10G-245S8/latest/Model/spec.html
+  ORX-10G-245S8M: &id173
+    default_roi: [5320, 4600, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://softwareservices.flir.com/ORX-10G-245S8/latest/Model/spec.html
+  ORX-10G-310S9C: &id174
+    default_roi: [6464, 4852, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/ORX-10G-310S9/latest/Model/spec.html
+  ORX-10G-310S9M: &id175
+    default_roi: [6464, 4852, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/ORX-10G-310S9/latest/Model/spec.html
+  ORX-10G-32S4C: &id164
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/ORX-10GS-32S4/latest/Model/spec.html
+  ORX-10G-32S4C-C: *id164
+  ORX-10G-32S4M: &id165
+    default_roi: [2048, 1536, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/ORX-10GS-32S4/latest/Model/spec.html
+  ORX-10G-32S4M-C: *id165
+  ORX-10G-71S7C: &id166
+    default_roi: [3208, 2200, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/ORX-10G-71S7/latest/Model/spec.html
+  ORX-10G-71S7C-C: *id166
+  ORX-10G-71S7M: &id167
+    default_roi: [3208, 2200, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://softwareservices.flir.com/ORX-10G-71S7/latest/Model/spec.html
+  ORX-10G-71S7M-C: *id167
+  ORX-10G-89S6C: &id168
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/ORX-10GS-89S6/latest/Model/spec.html
+  ORX-10G-89S6C-C: *id168
+  ORX-10G-89S6M: &id169
+    default_roi: [4096, 2160, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/ORX-10GS-89S6/latest/Model/spec.html
+  ORX-10G-89S6M-C: *id169
+  ORX-10GS-51S5C: &id170
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/ORX-10GS-51S5/latest/Model/spec.html
+  ORX-10GS-51S5C-C: *id170
+  ORX-10GS-51S5M: &id171
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://softwareservices.flir.com/ORX-10GS-51S5/latest/Model/spec.html
+  ORX-10GS-51S5M-C: *id171
+  Oryx ORX-10G-123S6C: *id162
+  Oryx ORX-10G-123S6M: *id163
+  Oryx ORX-10G-245S8C: *id172
+  Oryx ORX-10G-245S8M: *id173
+  Oryx ORX-10G-310S9C: *id174
+  Oryx ORX-10G-310S9M: *id175
+  Oryx ORX-10G-32S4C: *id164
+  Oryx ORX-10G-32S4M: *id165
+  Oryx ORX-10G-71S7C: *id166
+  Oryx ORX-10G-71S7M: *id167
+  Oryx ORX-10G-89S6C: *id168
+  Oryx ORX-10G-89S6M: *id169
+  Oryx ORX-10GS-51S5C: *id170
+  Oryx ORX-10GS-51S5M: *id171
+  a2A1280-125umSWIR:
+    default_roi: [1296, 1032, 0, 0]
+    pixel_size: 5.0e-06
+    source: https://docs.baslerweb.com/a2a1280-125umswir
+  a2A1280-80gmSWIR:
+    default_roi: [1296, 1032, 0, 0]
+    pixel_size: 5.0e-06
+    source: https://docs.baslerweb.com/a2a1280-80gmswir
+  a2A1920-160ucBAS:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-160ucbas
+  a2A1920-160ucPRO:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-160ucpro
+  a2A1920-160umBAS:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-160umbas
+  a2A1920-160umPRO:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-160umpro
+  a2A1920-165g5cBAS:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-165g5cbas
+  a2A1920-165g5mBAS:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-165g5mbas
+  a2A1920-168mgc:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-168mgc
+  a2A1920-168mgm:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-168mgm
+  a2A1920-51gcBAS:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-51gcbas
+  a2A1920-51gcIP67:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-51gcip67
+  a2A1920-51gcPRO:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-51gcpro
+  a2A1920-51gmBAS:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-51gmbas
+  a2A1920-51gmIP67:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-51gmip67
+  a2A1920-51gmPRO:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a1920-51gmpro
+  a2A2048-110umSWIR:
+    default_roi: [2080, 1544, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2048-110umswir
+  a2A2048-114g5cBAS:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-114g5cbas
+  a2A2048-114g5mBAS:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-114g5mbas
+  a2A2048-114mgc:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-114mgc
+  a2A2048-114mgm:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-114mgm
+  a2A2048-114ucBAS:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-114ucbas
+  a2A2048-114ucPRO:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-114ucpro
+  a2A2048-114umBAS:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-114umbas
+  a2A2048-114umPRO:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-114umpro
+  a2A2048-173cmSWIR:
+    default_roi: [2080, 1544, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2048-173cmswir
+  a2A2048-35gmSWIR:
+    default_roi: [2080, 1544, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2048-35gmswir
+  a2A2048-37gcBAS:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-37gcbas
+  a2A2048-37gcPRO:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-37gcpro
+  a2A2048-37gmBAS:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-37gmbas
+  a2A2048-37gmPRO:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/a2a2048-37gmpro
+  a2A2440-98g5cBAS:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2440-98g5cbas
+  a2A2440-98g5mBAS:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2440-98g5mbas
+  a2A2448-105g5cBAS:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-105g5cbas
+  a2A2448-105g5mBAS:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-105g5mbas
+  a2A2448-120cc:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-120cc
+  a2A2448-120cm:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-120cm
+  a2A2448-210cc:
+    default_roi: [2464, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-210cc
+  a2A2448-210cm:
+    default_roi: [2464, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-210cm
+  a2A2448-23gcBAS:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-23gcbas
+  a2A2448-23gcIP67:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-23gcip67
+  a2A2448-23gcPRO:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-23gcpro
+  a2A2448-23gmBAS:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-23gmbas
+  a2A2448-23gmIP67:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-23gmip67
+  a2A2448-23gmPRO:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-23gmpro
+  a2A2448-75ucBAS:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-75ucbas
+  a2A2448-75ucPRO:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-75ucpro
+  a2A2448-75umBAS:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-75umbas
+  a2A2448-75umPRO:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-75umpro
+  a2A2448-90mgc:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-90mgc
+  a2A2448-90mgm:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2448-90mgm
+  a2A2464-115g5cBAS:
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2464-115g5cbas
+  a2A2464-115g5mBAS:
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2464-115g5mbas
+  a2A2464-23gcBAS:
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2464-23gcbas
+  a2A2464-23gcPRO:
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2464-23gcpro
+  a2A2464-23gmBAS:
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2464-23gmbas
+  a2A2464-23gmPRO:
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2464-23gmpro
+  a2A2464-77ucBAS:
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2464-77ucbas
+  a2A2464-77ucPRO:
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2464-77ucpro
+  a2A2464-77umBAS:
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2464-77umbas
+  a2A2464-77umPRO:
+    default_roi: [2448, 2048, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2464-77umpro
+  a2A2560-131cmSWIR:
+    default_roi: [2592, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2560-131cmswir
+  a2A2560-20gmSWIR:
+    default_roi: [2592, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2560-20gmswir
+  a2A2560-70umSWIR:
+    default_roi: [2592, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/a2a2560-70umswir
+  a2A2590-22gcBAS:
+    default_roi: [2612, 1960, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a2590-22gcbas
+  a2A2590-22gcPRO:
+    default_roi: [2612, 1960, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a2590-22gcpro
+  a2A2590-22gmBAS:
+    default_roi: [2612, 1960, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a2590-22gmbas
+  a2A2590-22gmPRO:
+    default_roi: [2612, 1960, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a2590-22gmpro
+  a2A2590-60ucBAS:
+    default_roi: [2612, 1960, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a2590-60ucbas
+  a2A2590-60ucPRO:
+    default_roi: [2612, 1960, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a2590-60ucpro
+  a2A2590-60umBAS:
+    default_roi: [2612, 1960, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a2590-60umbas
+  a2A2590-60umPRO:
+    default_roi: [2612, 1960, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a2590-60umpro
+  a2A2600-20gcBAS:
+    default_roi: [2600, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a2600-20gcbas
+  a2A2600-20gcPRO:
+    default_roi: [2600, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a2600-20gcpro
+  a2A2600-20gmBAS:
+    default_roi: [2600, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a2600-20gmbas
+  a2A2600-20gmPRO:
+    default_roi: [2600, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a2600-20gmpro
+  a2A2600-64ucBAS:
+    default_roi: [2600, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a2600-64ucbas
+  a2A2600-64ucPRO:
+    default_roi: [2600, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a2600-64ucpro
+  a2A2600-64umBAS:
+    default_roi: [2600, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a2600-64umbas
+  a2A2600-64umPRO:
+    default_roi: [2600, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a2600-64umpro
+  a2A2840-14gcBAS:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-14gcbas
+  a2A2840-14gcIP67:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-14gcip67
+  a2A2840-14gcPRO:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-14gcpro
+  a2A2840-14gmBAS:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-14gmbas
+  a2A2840-14gmIP67:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-14gmip67
+  a2A2840-14gmPRO:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-14gmpro
+  a2A2840-14gmUV:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-14gmuv
+  a2A2840-48ucBAS:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-48ucbas
+  a2A2840-48ucPRO:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-48ucpro
+  a2A2840-48umBAS:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-48umbas
+  a2A2840-48umPRO:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-48umpro
+  a2A2840-48umUV:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-48umuv
+  a2A2840-57mgc:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-57mgc
+  a2A2840-57mgm:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-57mgm
+  a2A2840-67g5cBAS:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-67g5cbas
+  a2A2840-67g5mBAS:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-67g5mbas
+  a2A2840-67g5mUV:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-67g5muv
+  a2A2840-86cc:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-86cc
+  a2A2840-86cm:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a2840-86cm
+  a2A3536-31ucBAS:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-31ucbas
+  a2A3536-31ucPRO:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-31ucpro
+  a2A3536-31umBAS:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-31umbas
+  a2A3536-31umPRO:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-31umpro
+  a2A3536-37mgc:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-37mgc
+  a2A3536-37mgm:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-37mgm
+  a2A3536-42g5cBAS:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-42g5cbas
+  a2A3536-42g5mBAS:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-42g5mbas
+  a2A3536-9gcBAS:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-9gcbas
+  a2A3536-9gcPRO:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-9gcpro
+  a2A3536-9gmBAS:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-9gmbas
+  a2A3536-9gmPRO:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3536-9gmpro
+  a2A3840-13gcBAS:
+    default_roi: [3860, 2178, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3840-13gcbas
+  a2A3840-13gcPRO:
+    default_roi: [3860, 2178, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3840-13gcpro
+  a2A3840-13gmBAS:
+    default_roi: [3860, 2178, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3840-13gmbas
+  a2A3840-13gmPRO:
+    default_roi: [3860, 2178, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3840-13gmpro
+  a2A3840-45ucBAS:
+    default_roi: [3860, 2178, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3840-45ucbas
+  a2A3840-45ucPRO:
+    default_roi: [3860, 2178, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3840-45ucpro
+  a2A3840-45umBAS:
+    default_roi: [3860, 2178, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3840-45umbas
+  a2A3840-45umPRO:
+    default_roi: [3860, 2178, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/a2a3840-45umpro
+  a2A4096-30ucBAS:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-30ucbas
+  a2A4096-30ucPRO:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-30ucpro
+  a2A4096-30umBAS:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-30umbas
+  a2A4096-30umPRO:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-30umpro
+  a2A4096-38mgc:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-38mgc
+  a2A4096-38mgm:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-38mgm
+  a2A4096-44g5cBAS:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-44g5cbas
+  a2A4096-44g5mBAS:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-44g5mbas
+  a2A4096-67cc:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-67cc
+  a2A4096-67cm:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-67cm
+  a2A4096-9gcBAS:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-9gcbas
+  a2A4096-9gcIP67:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-9gcip67
+  a2A4096-9gcPRO:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-9gcpro
+  a2A4096-9gmBAS:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-9gmbas
+  a2A4096-9gmPRO:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-9gmpro
+  a2A4096-9gmip67:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4096-9gmip67
+  a2A4200-12gcBAS:
+    default_roi: [4200, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4200-12gcbas
+  a2A4200-12gcPRO:
+    default_roi: [4200, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4200-12gcpro
+  a2A4200-12gmBAS:
+    default_roi: [4200, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4200-12gmbas
+  a2A4200-12gmPRO:
+    default_roi: [4200, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4200-12gmpro
+  a2A4200-40ucBAS:
+    default_roi: [4200, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4200-40ucbas
+  a2A4200-40ucPRO:
+    default_roi: [4200, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4200-40ucpro
+  a2A4200-40umBAS:
+    default_roi: [4200, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4200-40umbas
+  a2A4200-40umPRO:
+    default_roi: [4200, 2160, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4200-40umpro
+  a2A4504-18ucBAS:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-18ucbas
+  a2A4504-18ucPRO:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-18ucpro
   a2A4504-18umBAS:
-    default_roi: [4504, 4504, 4, 4]
-    pixel_size: 2.74e-6
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-18umbas
+  a2A4504-18umPRO:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-18umpro
+  a2A4504-23mgc:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-23mgc
+  a2A4504-23mgm:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-23mgm
+  a2A4504-27g5cBAS:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-27g5cbas
+  a2A4504-27g5mBAS:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-27g5mbas
+  a2A4504-42cc:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-42cc
+  a2A4504-42cm:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-42cm
+  a2A4504-5gcBAS:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-5gcbas
+  a2A4504-5gcIP67:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-5gcip67
+  a2A4504-5gcPRO:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-5gcpro
+  a2A4504-5gmBAS:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-5gmbas
+  a2A4504-5gmIP67:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-5gmip67
+  a2A4504-5gmPRO:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a4504-5gmpro
+  a2A4508-20ucBAS:
+    default_roi: [4508, 4096, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4508-20ucbas
+  a2A4508-20ucPRO:
+    default_roi: [4508, 4096, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4508-20ucpro
+  a2A4508-20umBAS:
+    default_roi: [4508, 4096, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4508-20umbas
+  a2A4508-20umPRO:
+    default_roi: [4508, 4096, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4508-20umpro
+  a2A4508-6gcBAS:
+    default_roi: [4508, 4096, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4508-6gcbas
+  a2A4508-6gcPRO:
+    default_roi: [4508, 4096, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4508-6gcpro
+  a2A4508-6gmBAS:
+    default_roi: [4508, 4096, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4508-6gmbas
+  a2A4508-6gmPRO:
+    default_roi: [4508, 4096, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a4508-6gmpro
+  a2A5060-15ucBAS:
+    default_roi: [5068, 5068, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a5060-15ucbas
   a2A5060-15umBAS:
-    default_roi: [5060, 5060, 4, 4]
-    pixel_size: 2.5e-6
+    default_roi: [5068, 5068, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a5060-15umbas
+  a2A5060-21g5cBAS:
+    default_roi: [5064, 5068, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a5060-21g5cbas
+  a2A5060-21g5mBAS:
+    default_roi: [5064, 5068, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a5060-21g5mbas
+  a2A5060-35cc:
+    default_roi: [5064, 5068, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a5060-35cc
+  a2A5060-35cm:
+    default_roi: [5064, 5068, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a5060-35cm
+  a2A5060-4gcBAS:
+    default_roi: [5068, 5068, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a5060-4gcbas
+  a2A5060-4gmBAS:
+    default_roi: [5068, 5068, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/a2a5060-4gmbas
+  a2A5320-23ucBAS:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-23ucbas
+  a2A5320-23ucPRO:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-23ucpro
+  a2A5320-23umBAS:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-23umbas
+  a2A5320-23umPRO:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-23umpro
+  a2A5320-29mgc:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-29mgc
+  a2A5320-29mgm:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-29mgm
+  a2A5320-34g5cBAS:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-34g5cbas
+  a2A5320-34g5mBAS:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-34g5mbas
+  a2A5320-52cc:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-52cc
+  a2A5320-52cm:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-52cm
+  a2A5320-7gcBAS:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-7gcbas
+  a2A5320-7gcIP67:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-7gcip67
+  a2A5320-7gcPRO:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-7gcpro
+  a2A5320-7gmBAS:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-7gmbas
+  a2A5320-7gmIP67:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-7gmip67
+  a2A5320-7gmPRO:
+    default_roi: [5328, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5320-7gmpro
+  a2A5328-15ucBAS:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-15ucbas
+  a2A5328-15ucPRO:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-15ucpro
+  a2A5328-15umBAS:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-15umbas
+  a2A5328-15umPRO:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-15umpro
+  a2A5328-19mgc:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-19mgc
+  a2A5328-19mgm:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-19mgm
+  a2A5328-22g5cBAS:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-22g5cbas
+  a2A5328-22g5mBAS:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-22g5mbas
+  a2A5328-35cc:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-35cc
+  a2A5328-35cm:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-35cm
+  a2A5328-4gcBAS:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-4gcbas
+  a2A5328-4gcIP67:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-4gcip67
+  a2A5328-4gcPRO:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-4gcpro
+  a2A5328-4gmBAS:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-4gmbas
+  a2A5328-4gmIP67:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-4gmip67
+  a2A5328-4gmPRO:
+    default_roi: [5328, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/a2a5328-4gmpro
+  a2A640-240gmSWIR:
+    default_roi: [656, 520, 0, 0]
+    pixel_size: 5.0e-06
+    source: https://docs.baslerweb.com/a2a640-240gmswir
+  a2A640-240umSWIR:
+    default_roi: [656, 520, 0, 0]
+    pixel_size: 5.0e-06
+    source: https://docs.baslerweb.com/a2a640-240umswir
+  acA1280-60gc:
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 5.3e-06
+    source: https://docs.baslerweb.com/aca1280-60gc
+  acA1280-60gm:
+    default_roi: [1282, 1026, 0, 0]
+    pixel_size: 5.3e-06
+    source: https://docs.baslerweb.com/aca1280-60gm
+  acA1300-200uc:
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca1300-200uc
+  acA1300-200um:
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca1300-200um
+  acA1300-60gc:
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 5.3e-06
+    source: https://docs.baslerweb.com/aca1300-60gc
+  acA1300-60gm:
+    default_roi: [1282, 1026, 0, 0]
+    pixel_size: 5.3e-06
+    source: https://docs.baslerweb.com/aca1300-60gm
+  acA1300-60gmNIR:
+    default_roi: [1282, 1026, 0, 0]
+    pixel_size: 5.3e-06
+    source: https://docs.baslerweb.com/aca1300-60gmnir
+  acA1300-75gc:
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca1300-75gc
+  acA1300-75gm:
+    default_roi: [1280, 1024, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca1300-75gm
+  acA1440-220uc:
+    default_roi: [1456, 1088, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca1440-220uc
+  acA1440-220um:
+    default_roi: [1456, 1088, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca1440-220um
+  acA1440-73gc:
+    default_roi: [1456, 1088, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca1440-73gc
+  acA1440-73gm:
+    default_roi: [1456, 1088, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca1440-73gm
+  acA1600-60gc:
+    default_roi: [1600, 1200, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://docs.baslerweb.com/aca1600-60gc
+  acA1600-60gm:
+    default_roi: [1602, 1202, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://docs.baslerweb.com/aca1600-60gm
+  acA1920-150uc:
+    default_roi: [1984, 1264, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca1920-150uc
+  acA1920-150um:
+    default_roi: [1984, 1264, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca1920-150um
+  acA1920-155uc:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-155uc
+  acA1920-155ucMED:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-155ucmed
+  acA1920-155um:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-155um
+  acA1920-155umMED:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-155ummed
+  acA1920-25gc:
+    default_roi: [1920, 1080, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/aca1920-25gc
+  acA1920-25gm:
+    default_roi: [1920, 1080, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/aca1920-25gm
+  acA1920-25uc:
+    default_roi: [1920, 1080, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/aca1920-25uc
+  acA1920-25um:
+    default_roi: [1920, 1080, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/aca1920-25um
+  acA1920-40gc:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-40gc
+  acA1920-40gm:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-40gm
+  acA1920-40uc:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-40uc
+  acA1920-40ucMED:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-40ucmed
+  acA1920-40um:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-40um
+  acA1920-40umMED:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-40ummed
+  acA1920-48gc:
+    default_roi: [1984, 1264, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca1920-48gc
+  acA1920-48gm:
+    default_roi: [1984, 1264, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca1920-48gm
+  acA1920-50gc:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-50gc
+  acA1920-50gm:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 5.86e-06
+    source: https://docs.baslerweb.com/aca1920-50gm
+  acA2000-165uc:
+    default_roi: [2040, 1086, 0, 0]
+    pixel_size: 5.5e-06
+    source: https://docs.baslerweb.com/aca2000-165uc
+  acA2000-165um:
+    default_roi: [2048, 1088, 0, 0]
+    pixel_size: 5.5e-06
+    source: https://docs.baslerweb.com/aca2000-165um
+  acA2000-50gc:
+    default_roi: [2046, 1086, 0, 0]
+    pixel_size: 5.5e-06
+    source: https://docs.baslerweb.com/aca2000-50gc
+  acA2000-50gm:
+    default_roi: [2048, 1088, 0, 0]
+    pixel_size: 5.5e-06
+    source: https://docs.baslerweb.com/aca2000-50gm
+  acA2040-120uc:
+    default_roi: [2064, 1544, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2040-120uc
+  acA2040-120um:
+    default_roi: [2064, 1544, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2040-120um
+  acA2040-25gc:
+    default_roi: [2046, 2046, 0, 0]
+    pixel_size: 5.5e-06
+    source: https://docs.baslerweb.com/aca2040-25gc
+  acA2040-25gm:
+    default_roi: [2048, 2048, 0, 0]
+    pixel_size: 5.5e-06
+    source: https://docs.baslerweb.com/aca2040-25gm
+  acA2040-25gmNIR:
+    default_roi: [2048, 2048, 0, 0]
+    pixel_size: 5.5e-06
+    source: https://docs.baslerweb.com/aca2040-25gmnir
+  acA2040-35gc:
+    default_roi: [2064, 1544, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2040-35gc
+  acA2040-35gm:
+    default_roi: [2064, 1544, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2040-35gm
+  acA2040-55uc:
+    default_roi: [2064, 1544, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2040-55uc
+  acA2040-55um:
+    default_roi: [2064, 1544, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2040-55um
+  acA2040-90uc:
+    default_roi: [2040, 2046, 0, 0]
+    pixel_size: 5.5e-06
+    source: https://docs.baslerweb.com/aca2040-90uc
+  acA2040-90um:
+    default_roi: [2048, 2048, 0, 0]
+    pixel_size: 5.5e-06
+    source: https://docs.baslerweb.com/aca2040-90um
+  acA2040-90umNIR:
+    default_roi: [2048, 2048, 0, 0]
+    pixel_size: 5.5e-06
+    source: https://docs.baslerweb.com/aca2040-90umnir
+  acA2440-20gc:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2440-20gc
+  acA2440-20gm:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2440-20gm
+  acA2440-35uc:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2440-35uc
+  acA2440-35ucMED:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2440-35ucmed
+  acA2440-35um:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2440-35um
+  acA2440-35umMED:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2440-35ummed
+  acA2440-75uc:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2440-75uc
+  acA2440-75ucMED:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2440-75ucmed
+  acA2440-75um:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2440-75um
+  acA2440-75umMED:
+    default_roi: [2464, 2056, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca2440-75ummed
+  acA2500-14gc:
+    default_roi: [2592, 1942, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/aca2500-14gc
+  acA2500-14gm:
+    default_roi: [2592, 1942, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/aca2500-14gm
+  acA2500-14uc:
+    default_roi: [2590, 1942, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/aca2500-14uc
+  acA2500-14um:
+    default_roi: [2592, 1944, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/aca2500-14um
+  acA2500-20gc:
+    default_roi: [2592, 2048, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca2500-20gc
+  acA2500-20gcMED:
+    default_roi: [2592, 2048, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca2500-20gcmed
+  acA2500-20gm:
+    default_roi: [2592, 2048, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca2500-20gm
+  acA2500-20gmMED:
+    default_roi: [2592, 2048, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca2500-20gmmed
+  acA2500-60uc:
+    default_roi: [2592, 2048, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca2500-60uc
+  acA2500-60um:
+    default_roi: [2592, 2048, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca2500-60um
+  acA3088-16gc:
+    default_roi: [3088, 2064, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca3088-16gc
+  acA3088-16gm:
+    default_roi: [3088, 2064, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca3088-16gm
+  acA3088-57uc:
+    default_roi: [3088, 2064, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca3088-57uc
+  acA3088-57ucMED:
+    default_roi: [3088, 2064, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca3088-57ucmed
+  acA3088-57um:
+    default_roi: [3088, 2064, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca3088-57um
+  acA3088-57umMED:
+    default_roi: [3088, 2064, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca3088-57ummed
+  acA3800-10gc:
+    default_roi: [3840, 2748, 0, 0]
+    pixel_size: 1.67e-06
+    source: https://docs.baslerweb.com/aca3800-10gc
+  acA3800-10gm:
+    default_roi: [3840, 2748, 0, 0]
+    pixel_size: 1.67e-06
+    source: https://docs.baslerweb.com/aca3800-10gm
+  acA3800-14uc:
+    default_roi: [3840, 2748, 0, 0]
+    pixel_size: 1.67e-06
+    source: https://docs.baslerweb.com/aca3800-14uc
+  acA3800-14um:
+    default_roi: [3840, 2748, 0, 0]
+    pixel_size: 1.67e-06
+    source: https://docs.baslerweb.com/aca3800-14um
+  acA4024-29uc:
+    default_roi: [4024, 3036, 0, 0]
+    pixel_size: 1.85e-06
+    source: https://docs.baslerweb.com/aca4024-29uc
   acA4024-29um:
-    default_roi: [4024, 3036, 4, 4]
-    pixel_size: 1.851e-6
-  # FLIR DeviceModelName omits the lens-mount suffix (-C).
-  BFS-U3-31S4M: &blackfly_31s4
-    default_roi: [2048, 1536, 0, 0]
-    pixel_size: 3.45e-6
-    # Optional outputs; see docs/macos.md before connecting external hardware.
-    sync:
-      exposure_line: Line1
-      user_line: Line2
-      user_output: UserOutput0
-  BFS-U3-31S4M-C:
-    default_roi: [2048, 1536, 0, 0]
-    pixel_size: 3.45e-6
-    sync:
-      exposure_line: Line1
-      user_line: Line2
-      user_output: UserOutput0
-  Blackfly S BFS-U3-31S4M: *blackfly_31s4
+    default_roi: [4024, 3036, 0, 0]
+    pixel_size: 1.85e-06
+    source: https://docs.baslerweb.com/aca4024-29um
+  acA4024-8gc:
+    default_roi: [4024, 3036, 0, 0]
+    pixel_size: 1.85e-06
+    source: https://docs.baslerweb.com/aca4024-8gc
+  acA4024-8gm:
+    default_roi: [4024, 3036, 0, 0]
+    pixel_size: 1.85e-06
+    source: https://docs.baslerweb.com/aca4024-8gm
+  acA4096-11gc:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4096-11gc
+  acA4096-11gm:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4096-11gm
+  acA4096-30uc:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4096-30uc
+  acA4096-30ucMED:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4096-30ucmed
+  acA4096-30um:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4096-30um
+  acA4096-30umMED:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4096-30ummed
+  acA4096-40uc:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4096-40uc
+  acA4096-40ucMED:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4096-40ucmed
+  acA4096-40um:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4096-40um
+  acA4096-40umMED:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4096-40ummed
+  acA4112-20uc:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4112-20uc
+  acA4112-20ucMED:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4112-20ucmed
+  acA4112-20um:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4112-20um
+  acA4112-20umMED:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4112-20ummed
+  acA4112-30uc:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4112-30uc
+  acA4112-30ucMED:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4112-30ucmed
+  acA4112-30um:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4112-30um
+  acA4112-30umMED:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4112-30ummed
+  acA4112-8gc:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4112-8gc
+  acA4112-8gm:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/aca4112-8gm
+  acA5472-17uc:
+    default_roi: [5496, 3672, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca5472-17uc
+  acA5472-17ucMED:
+    default_roi: [5496, 3672, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca5472-17ucmed
+  acA5472-17um:
+    default_roi: [5496, 3672, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca5472-17um
+  acA5472-17umMED:
+    default_roi: [5496, 3672, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca5472-17ummed
+  acA5472-5gc:
+    default_roi: [5496, 3672, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca5472-5gc
+  acA5472-5gm:
+    default_roi: [5496, 3672, 0, 0]
+    pixel_size: 2.4e-06
+    source: https://docs.baslerweb.com/aca5472-5gm
+  acA640-121gm:
+    default_roi: [659, 494, 0, 0]
+    pixel_size: 5.6e-06
+    source: https://docs.baslerweb.com/aca640-121gm
+  acA640-300gc:
+    default_roi: [672, 512, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca640-300gc
+  acA640-300gm:
+    default_roi: [672, 512, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca640-300gm
+  acA640-750uc:
+    default_roi: [672, 512, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca640-750uc
+  acA640-750um:
+    default_roi: [672, 512, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca640-750um
+  acA720-290gc:
+    default_roi: [728, 544, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://docs.baslerweb.com/aca720-290gc
+  acA720-290gm:
+    default_roi: [728, 544, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://docs.baslerweb.com/aca720-290gm
+  acA720-520uc:
+    default_roi: [728, 544, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://docs.baslerweb.com/aca720-520uc
+  acA720-520um:
+    default_roi: [728, 544, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://docs.baslerweb.com/aca720-520um
+  acA800-200gc:
+    default_roi: [832, 632, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca800-200gc
+  acA800-200gm:
+    default_roi: [832, 632, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca800-200gm
+  acA800-510uc:
+    default_roi: [832, 632, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca800-510uc
+  acA800-510um:
+    default_roi: [832, 632, 0, 0]
+    pixel_size: 4.8e-06
+    source: https://docs.baslerweb.com/aca800-510um
+  boA13440-17cm:
+    default_roi: [13376, 9528, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/boa13440-17cm
+  boA1936-400cc:
+    default_roi: [1936, 1472, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://docs.baslerweb.com/boa1936-400cc
+  boA1936-400cm:
+    default_roi: [1936, 1472, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://docs.baslerweb.com/boa1936-400cm
+  boA2448-250cc:
+    default_roi: [2464, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa2448-250cc
+  boA2448-250cm:
+    default_roi: [2464, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa2448-250cm
+  boA2832-190cc:
+    default_roi: [2848, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa2832-190cc
+  boA2832-190cm:
+    default_roi: [2848, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa2832-190cm
+  boA4096-180cc:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa4096-180cc
+  boA4096-180cm:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa4096-180cm
+  boA4096-93cc:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/boa4096-93cc
+  boA4096-93cm:
+    default_roi: [4112, 2176, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/boa4096-93cm
+  boA4112-68cc:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/boa4112-68cc
+  boA4112-68cm:
+    default_roi: [4112, 3008, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/boa4112-68cm
+  boA4500-45cc:
+    default_roi: [4448, 4448, 0, 0]
+    pixel_size: 3.2e-06
+    source: https://docs.baslerweb.com/boa4500-45cc
+  boA4500-45cm:
+    default_roi: [4448, 4448, 0, 0]
+    pixel_size: 3.2e-06
+    source: https://docs.baslerweb.com/boa4500-45cm
+  boA4504-100cc:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa4504-100cc
+  boA4504-100cm:
+    default_roi: [4512, 4512, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa4504-100cm
+  boA5056-95cm:
+    default_roi: [5056, 5068, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/boa5056-95cm
+  boA5120-150cc:
+    default_roi: [5120, 5120, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/boa5120-150cc
+  boA5120-150cm:
+    default_roi: [5120, 5120, 0, 0]
+    pixel_size: 2.5e-06
+    source: https://docs.baslerweb.com/boa5120-150cm
+  boA5120-230cc:
+    default_roi: [5120, 4096, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://docs.baslerweb.com/boa5120-230cc
+  boA5120-230cm:
+    default_roi: [5120, 4096, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://docs.baslerweb.com/boa5120-230cm
+  boA5320-150cc:
+    default_roi: [5280, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa5320-150cc
+  boA5320-150cm:
+    default_roi: [5280, 3040, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa5320-150cm
+  boA5328-100cc:
+    default_roi: [5280, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa5328-100cc
+  boA5328-100cm:
+    default_roi: [5280, 4608, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/boa5328-100cm
+  boA6500-36cc:
+    default_roi: [6560, 4948, 0, 0]
+    pixel_size: 3.2e-06
+    source: https://docs.baslerweb.com/boa6500-36cc
+  boA6500-36cm:
+    default_roi: [6560, 4948, 0, 0]
+    pixel_size: 3.2e-06
+    source: https://docs.baslerweb.com/boa6500-36cm
+  boA8100-16cc:
+    default_roi: [8192, 5468, 0, 0]
+    pixel_size: 3.2e-06
+    source: https://docs.baslerweb.com/boa8100-16cc
+  boA8100-16cm:
+    default_roi: [8192, 5468, 0, 0]
+    pixel_size: 3.2e-06
+    source: https://docs.baslerweb.com/boa8100-16cm
+  boA9344-30cc:
+    default_roi: [9344, 7000, 0, 0]
+    pixel_size: 3.2e-06
+    source: https://docs.baslerweb.com/boa9344-30cc
+  boA9344-30cm:
+    default_roi: [9344, 7000, 0, 0]
+    pixel_size: 3.2e-06
+    source: https://docs.baslerweb.com/boa9344-30cm
+  boA9344-70cc:
+    default_roi: [9344, 7000, 0, 0]
+    pixel_size: 3.2e-06
+    source: https://docs.baslerweb.com/boa9344-70cc
+  boA9344-70cm:
+    default_roi: [9344, 7000, 0, 0]
+    pixel_size: 3.2e-06
+    source: https://docs.baslerweb.com/boa9344-70cm
+  daA1280-54uc:
+    default_roi: [1280, 960, 0, 0]
+    pixel_size: 3.75e-06
+    source: https://docs.baslerweb.com/daa1280-54uc
+  daA1280-54um:
+    default_roi: [1280, 960, 0, 0]
+    pixel_size: 3.75e-06
+    source: https://docs.baslerweb.com/daa1280-54um
+  daA1440-220uc:
+    default_roi: [1456, 1088, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/daa1440-220uc
+  daA1440-220um:
+    default_roi: [1456, 1088, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/daa1440-220um
+  daA1600-60uc:
+    default_roi: [1600, 1200, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://docs.baslerweb.com/daa1600-60uc
+  daA1600-60um:
+    default_roi: [1600, 1200, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://docs.baslerweb.com/daa1600-60um
+  daA1920-15um:
+    default_roi: [1920, 1080, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/daa1920-15um
+  daA1920-160uc:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/daa1920-160uc
+  daA1920-160um:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/daa1920-160um
+  daA1920-30uc:
+    default_roi: [1920, 1080, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/daa1920-30uc
+  daA1920-30um:
+    default_roi: [1920, 1080, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/daa1920-30um
+  daA2448-70uc:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/daa2448-70uc
+  daA2448-70um:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/daa2448-70um
+  daA2500-14uc:
+    default_roi: [2592, 1944, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/daa2500-14uc
+  daA2500-14um:
+    default_roi: [2592, 1944, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/daa2500-14um
+  daA2500-60mc:
+    default_roi: [2560, 1920, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/daa2500-60mc
+  daA2500-60mci:
+    default_roi: [2592, 1944, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/daa2500-60mci
+  daA3840-30mc:
+    default_roi: [3840, 2160, 0, 0]
+    pixel_size: 2.1e-06
+    source: https://docs.baslerweb.com/daa3840-30mc
+  daA3840-45uc:
+    default_roi: [3860, 2178, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/daa3840-45uc
+  daA3840-45um:
+    default_roi: [3860, 2178, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/daa3840-45um
+  daA4200-30mci:
+    default_roi: [4208, 3120, 0, 0]
+    pixel_size: 1.1e-06
+    source: https://docs.baslerweb.com/daa4200-30mci
+  daA720-520uc:
+    default_roi: [728, 544, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://docs.baslerweb.com/daa720-520uc
+  daA720-520um:
+    default_roi: [728, 544, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://docs.baslerweb.com/daa720-520um
+  dmA1440-73gc:
+    default_roi: [1456, 1088, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/dma1440-73gc
+  dmA1440-73gm:
+    default_roi: [1456, 1088, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/dma1440-73gm
+  dmA1920-51gc:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/dma1920-51gc
+  dmA1920-51gm:
+    default_roi: [1936, 1216, 0, 0]
+    pixel_size: 3.45e-06
+    source: https://docs.baslerweb.com/dma1920-51gm
+  dmA2048-37gc:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/dma2048-37gc
+  dmA2048-37gm:
+    default_roi: [2064, 1552, 0, 0]
+    pixel_size: 2.25e-06
+    source: https://docs.baslerweb.com/dma2048-37gm
+  dmA2448-23gc:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/dma2448-23gc
+  dmA2448-23gm:
+    default_roi: [2472, 2064, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/dma2448-23gm
+  dmA2840-14gc:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/dma2840-14gc
+  dmA2840-14gm:
+    default_roi: [2856, 2848, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/dma2840-14gm
+  dmA3536-9gc:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/dma3536-9gc
+  dmA3536-9gm:
+    default_roi: [3536, 3552, 0, 0]
+    pixel_size: 2.0e-06
+    source: https://docs.baslerweb.com/dma3536-9gm
+  dmA4096-9gc:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/dma4096-9gc
+  dmA4096-9gm:
+    default_roi: [4128, 3008, 0, 0]
+    pixel_size: 2.74e-06
+    source: https://docs.baslerweb.com/dma4096-9gm
+  dmA720-290gc:
+    default_roi: [728, 544, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://docs.baslerweb.com/dma720-290gc
+  dmA720-290gm:
+    default_roi: [728, 544, 0, 0]
+    pixel_size: 6.9e-06
+    source: https://docs.baslerweb.com/dma720-290gm
+  puA1280-54uc:
+    default_roi: [1280, 960, 0, 0]
+    pixel_size: 3.75e-06
+    source: https://docs.baslerweb.com/pua1280-54uc
+  puA1280-54um:
+    default_roi: [1280, 960, 0, 0]
+    pixel_size: 3.75e-06
+    source: https://docs.baslerweb.com/pua1280-54um
+  puA1600-60uc:
+    default_roi: [1600, 1200, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://docs.baslerweb.com/pua1600-60uc
+  puA1600-60um:
+    default_roi: [1600, 1200, 0, 0]
+    pixel_size: 4.5e-06
+    source: https://docs.baslerweb.com/pua1600-60um
+  puA1920-30uc:
+    default_roi: [1920, 1080, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/pua1920-30uc
+  puA1920-30um:
+    default_roi: [1920, 1080, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/pua1920-30um
+  puA2500-14uc:
+    default_roi: [2592, 1944, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/pua2500-14uc
+  puA2500-14um:
+    default_roi: [2592, 1944, 0, 0]
+    pixel_size: 2.2e-06
+    source: https://docs.baslerweb.com/pua2500-14um

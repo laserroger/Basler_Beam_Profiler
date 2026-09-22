@@ -88,6 +88,10 @@ truth (positions, widths, orientation, grid classification).
 
 `camera_config.yaml`
 
+The bundled [camera catalog](docs/camera-catalog.md) includes verified FLIR and
+Basler sensor sizes and pixel pitches, with a manufacturer source for each entry.
+Installed apps load new bundled models alongside your saved configuration.
+
 ```yaml
 cameras:
   a2A5060-15umBAS:                     # must match the camera model name

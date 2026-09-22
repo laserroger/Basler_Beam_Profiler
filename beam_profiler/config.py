@@ -47,12 +47,21 @@ def load_camera_config() -> dict[str, dict]:
     path = os.path.join(APP_DIR, "camera_config.yaml")
     if not os.path.exists(path):
         path = "./camera_config.yaml"
-    try:
-        with open(path, encoding="utf-8") as f:
-            cameras = yaml.safe_load(f)["cameras"]
-        for cfg in cameras.values():
-            cfg["default_roi"] = tuple(cfg["default_roi"])
-        return cameras
-    except Exception as e:
-        logging.error(f"Error loading camera config: {e}")
-        return {}
+    # Existing installations keep their writable YAML across upgrades. Load the
+    # bundled catalog first so new models are available without replacing it.
+    paths = []
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        paths.append(os.path.join(sys._MEIPASS, "camera_config.yaml"))
+    paths.append(path)
+    cameras = {}
+    for source in dict.fromkeys(paths):
+        try:
+            with open(source, encoding="utf-8") as f:
+                models = yaml.safe_load(f)["cameras"]
+            for model, settings in models.items():
+                cfg = {**cameras.get(model, {}), **settings}
+                cfg["default_roi"] = tuple(cfg["default_roi"])
+                cameras[model] = cfg
+        except Exception as e:
+            logging.error("Error loading camera config %s: %s", source, e)
+    return cameras
