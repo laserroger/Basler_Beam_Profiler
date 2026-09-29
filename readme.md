@@ -163,3 +163,6 @@ The camera is armed with a software trigger, and drives two GPIO lines:
 
 Cameras that do not expose these lines (or the software trigger) log a warning at
 startup and keep running with that feature disabled.
+
+Display colors can be changed with **O → Display → Heatmap colors**. The choice
+is saved locally; raw frames and fitted measurements are unchanged.

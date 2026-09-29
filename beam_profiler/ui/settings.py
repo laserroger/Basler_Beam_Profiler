@@ -96,7 +96,7 @@ class SettingsWindow:
 
         header = ttk.Label(
             root,
-            text="Changes apply to the next frame and are saved to fit_config.json.",
+            text="Type a number, then press Enter or leave the field to apply and save.",
             padding=(10, 8),
         )
         header.pack(fill="x")
@@ -227,7 +227,9 @@ class SettingsWindow:
         if not self.alive and self._root is None:
             return
         cfg = fitconfig.active()
-        if cfg != self._shown:
+        focused = self._root.focus_get()
+        editing = isinstance(focused, (tk.Entry, ttk.Entry))
+        if cfg != self._shown and not editing:
             self._show(cfg)
         self._root.after(500, self._poll_external)
 

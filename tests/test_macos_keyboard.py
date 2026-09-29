@@ -41,3 +41,16 @@ def test_up_key_survives_tk_event_pump_once_per_press():
             remove_key_monitor(token)
         cv2.destroyWindow(title)
         settings.destroy_settings()
+
+
+@pytest.mark.skipif(sys.platform != 'darwin', reason='Cocoa event routing')
+def test_viewer_poll_does_not_consume_tk_entry_keys(monkeypatch):
+    from collections import deque
+    from beam_profiler.ui import viewer, macos
+    v = viewer.Viewer.__new__(viewer.Viewer)
+    v._pending_keys = deque()
+    monkeypatch.setattr(macos, 'viewer_has_keyboard_focus', lambda title: False)
+    def forbidden(delay):
+        raise AssertionError('OpenCV must not consume keys from a settings field')
+    monkeypatch.setattr(viewer.cv2, 'waitKeyEx', forbidden)
+    assert v._poll_keys(1)

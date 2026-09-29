@@ -69,6 +69,9 @@ def test_manual_keys_do_not_fight_auto_exposure():
 
 def test_keys_from_both_event_loops_are_processed_once_in_order(monkeypatch):
     from collections import deque
+    import sys
+    if sys.platform == 'darwin':
+        monkeypatch.setattr('beam_profiler.ui.macos.viewer_has_keyboard_focus', lambda _: True)
     v = viewer(11.)
     v._pending_keys = deque([63232])
     calls = []

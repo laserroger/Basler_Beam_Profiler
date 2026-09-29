@@ -207,16 +207,19 @@ class Viewer:
         line widths do not scale with the ROI zoom."""
         view = self.view
         resized = cv2.resize(frame_disp, (view.view_w, view.view_h))
-        padded = cv2.copyMakeBorder(
-            resized,
+        # Color only the displayed intensity; fitting and saved frames stay raw.
+        colored = (cv2.applyColorMap(resized, cv2.COLORMAP_TURBO)
+                   if fitconfig.active().heatmap
+                   else cv2.cvtColor(resized, cv2.COLOR_GRAY2BGR))
+        disp = cv2.copyMakeBorder(
+            colored,
             view.pad_t,
             WINDOW_SIZE - view.view_h - view.pad_t,
             view.pad_l,
             WINDOW_SIZE - view.view_w - view.pad_l,
             cv2.BORDER_CONSTANT,
-            value=PAD_COLOR[0],
+            value=PAD_COLOR,
         )
-        disp = cv2.cvtColor(padded, cv2.COLOR_GRAY2RGB)
         if len(spots) and (self.profiler_enabled or not self.row_col_fitting):
             overlays.draw_spots(disp, spots, view, self.camera.pixel_size)
 
@@ -518,7 +521,13 @@ class Viewer:
         return True
 
     def _poll_keys(self, delay):
-        key = cv2.waitKeyEx(delay)
+        # Cocoa waitKey can consume events belonging to Tk entry fields.
+        # Tk already pumps the shared event queue at the top of every frame.
+        if sys.platform == 'darwin':
+            from .macos import viewer_has_keyboard_focus
+            key = cv2.waitKeyEx(delay) if viewer_has_keyboard_focus(WINDOW) else -1
+        else:
+            key = cv2.waitKeyEx(delay)
         if key != -1:
             self._pending_keys.append(key)
         while self._pending_keys:

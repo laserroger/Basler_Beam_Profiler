@@ -40,6 +40,7 @@ class FitConfig:
     crop_quantum: int = 4
     min_crop: int = 3
     max_crop: int = 512
+    heatmap: bool = False
     # --- backend -----------------------------------------------------------
     gpu_enabled: bool = True
     gpu_min_spots: int = 400
@@ -62,6 +63,9 @@ class Setting:
 
 
 SETTINGS: tuple[Setting, ...] = (
+    Setting("heatmap", "Heatmap colors", "bool", 0, 1, "Display",
+            "Show intensity using Turbo heatmap colors instead of grayscale.\n"
+            "Raw saved pixels and beam measurements are unchanged."),
     Setting(
         "crop_sigma", "Crop half-width (x sigma)", "float", 1.5, 12.0, "Estimator",
         "Crop half-width per axis, in units of the fitted sigma of that axis.\n"

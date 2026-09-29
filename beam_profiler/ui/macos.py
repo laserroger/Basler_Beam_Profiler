@@ -54,3 +54,9 @@ def attach_key_monitor(title, callback):
 def remove_key_monitor(token):
     from AppKit import NSEvent
     NSEvent.removeMonitor_(token)
+
+
+def viewer_has_keyboard_focus(title):
+    """Only let OpenCV consume keys while its own camera window is active."""
+    window = NSApplication.sharedApplication().keyWindow()
+    return window is not None and str(window.title()) == title
