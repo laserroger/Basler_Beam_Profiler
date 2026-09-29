@@ -40,6 +40,7 @@ class FitConfig:
     crop_quantum: int = 4
     min_crop: int = 3
     max_crop: int = 512
+    angular_focal_mm: float = 150.0
     heatmap: bool = False
     # --- backend -----------------------------------------------------------
     gpu_enabled: bool = True
@@ -63,6 +64,9 @@ class Setting:
 
 
 SETTINGS: tuple[Setting, ...] = (
+    Setting("angular_focal_mm", "Focal length (mm)", "float", 0.1, 10000.0, "Grid distortion",
+            "Effective focal length used to convert adjacent-spot spacing to milliradians.\n"
+            "Pixel pitch comes from the connected camera. Applies to the next frame."),
     Setting("heatmap", "Heatmap colors", "bool", 0, 1, "Display",
             "Show intensity using Turbo heatmap colors instead of grayscale.\n"
             "Raw saved pixels and beam measurements are unchanged."),

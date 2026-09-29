@@ -13,7 +13,7 @@ a = Analysis(
     ['pylon_camera.py'],
     pathex=[],
     binaries=[],
-    datas=[('camera_config.yaml', '.'), ('docs/macos.md', 'docs')],
+    datas=[('beam_profiler/templates', 'beam_profiler/templates'), ('camera_config.yaml', '.'), ('docs/macos.md', 'docs')],
     hiddenimports=['AppKit', 'Foundation'],
     hookspath=[],
     runtime_hooks=['packaging_flir_hook.py'] if with_flir else [],

@@ -166,3 +166,15 @@ startup and keep running with that feature disabled.
 
 Display colors can be changed with **O → Display → Heatmap colors**. The choice
 is saved locally; raw frames and fitted measurements are unchanged.
+
+### Local grid-distortion tools (grid-distortion branch)
+
+Press **A** to toggle the native spot-spacing plot beside the camera window.
+The green rectangle must contain at least two spots. Pair 1 is the rightmost
+adjacent pair. Each frame produces angular spacings and a straight-line trend;
+there is no temporal averaging. Use **O → Grid distortion → Focal length (mm)**
+to change the default 150 mm focal length. Pixel pitch comes from the camera.
+
+The browser camera preview and angular plot remain optional: enable the web
+server with **W**, then visit its `/angular` page. These tools are separate from
+main's beam-profiler features.

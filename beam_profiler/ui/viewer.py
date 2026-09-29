@@ -83,6 +83,7 @@ class Viewer:
         self.web_server_enabled = False
         self.show_rect_stats = False
         self._web_thread = None
+        self.angular_monitor = None  # opt-in single-shot dispersion view
 
         # WINDOW_GUI_NORMAL drops the Qt toolbar and the pixel-hover overlay,
         # which render as black/garbled boxes (OpenCV's bundled Qt has no fonts)
@@ -140,12 +141,21 @@ class Viewer:
                 break
             self._apply_scroll()
             t0 = time.time()
+            grab_started = time.perf_counter()
             frame = self.camera.grab_image()
+            acquisition_ms = (time.perf_counter() - grab_started) * 1000
             if frame is None:
                 if not self._poll_keys(10):
                     break
                 continue
             self.current_frame = frame
+            self.preview_snapshot = (frame, tuple(self.camera.ROI),
+                                     tuple(self.fit_rect_sensor) if self.fit_rect_sensor else None)
+            if self.angular_monitor is not None:
+                self.angular_monitor.update(
+                    frame, self.camera.ROI, self.fit_rect_sensor,
+                    fitconfig.active(), acquisition_ms, pixel_um=self.camera.pixel_size * 1e6,
+                )
             frame_disp = (
                 cv2.convertScaleAbs(frame, alpha=1 / 256.0)
                 if self.camera.mode == "16Bit"
@@ -170,6 +180,8 @@ class Viewer:
 
             disp = self._compose(frame_disp, spots)
             cv2.imshow(WINDOW, disp)
+            if self.angular_monitor is not None:
+                self._spacing_window.update(self.angular_monitor.latest)
             if not self._poll_keys(1):
                 break
             frame_count += 1
@@ -476,7 +488,21 @@ class Viewer:
         return (int(s1[0]), int(s1[1]), int(s2[0]), int(s2[1]))
 
     # ------------------------------ keys ---------------------------------- #
+    def _toggle_angular(self):
+        if self.angular_monitor is not None:
+            self.angular_monitor = None
+            self._spacing_window.destroy()
+            self._spacing_window = None
+            return
+        from ..angular import AngularMonitor
+        from .spacing import SpacingWindow
+        self._spacing_window = SpacingWindow(self._toggle_angular)
+        self.angular_monitor = AngularMonitor()
+
     def _handle_key(self, key: int) -> bool:
+        if key in (ord('a'), ord('A')):
+            self._toggle_angular()
+            return True
         if key == 27:  # ESC
             return False
         if key in KEY_FACTORS:

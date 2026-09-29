@@ -9,13 +9,15 @@ from dataclasses import asdict
 from io import BytesIO
 
 import cv2
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, render_template
 
 from . import fitconfig
 from .processing import crop_rect, region_stats
 from .status import viewer_status
 
 ENDPOINTS = [
+    ("GET", "/angular", "Single-shot angular-response plot (when enabled)."),
+    ("GET", "/api/angular", "Latest single-frame angular response and measured timings."),
     ("GET", "/api/status", "Camera status (model, exposure, ROI, rectangles)."),
     ("GET", "/api/rect_stats", "Pixel statistics of the white rectangle."),
     ("GET", "/api/fit_rect_stats", "Pixel statistics of the green fitting rectangle."),
@@ -33,6 +35,35 @@ ENDPOINTS = [
 
 def create_app(viewer) -> Flask:
     app = Flask(__name__)
+
+    @app.route('/angular')
+    def angular_page():
+        return render_template('angular.html')
+
+    @app.route('/api/angular')
+    def angular_data():
+        monitor = getattr(viewer, 'angular_monitor', None)
+        if monitor is None:
+            return jsonify(valid=False, error='Angular monitor is not enabled'), 409
+        return jsonify(monitor.latest)
+
+    @app.route('/api/preview')
+    def camera_preview():
+        snapshot = getattr(viewer, 'preview_snapshot', None)
+        if snapshot is None:
+            return jsonify(error='Waiting for camera frame'), 503
+        frame, roi, rect = snapshot
+        gray = cv2.convertScaleAbs(frame, alpha=1/256.) if frame.dtype.itemsize == 2 else frame
+        preview = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+        if rect is not None:
+            _, _, ox, oy = roi
+            x1, y1, x2, y2 = rect
+            cv2.rectangle(preview, (int(x1-ox), int(y1-oy)),
+                          (int(x2-ox-1), int(y2-oy-1)), (0,255,0), 1)
+        _, buffer = cv2.imencode('.jpg', preview)
+        response = send_file(BytesIO(buffer.tobytes()), mimetype='image/jpeg')
+        response.headers['Cache-Control'] = 'no-store'
+        return response
 
     def rect_stats_response(rect, label):
         if viewer.current_frame is None:
@@ -155,6 +186,8 @@ def create_app(viewer) -> Flask:
 
     @app.route("/")
     def index():
+        if getattr(viewer, 'angular_monitor', None) is not None:
+            return render_template('angular.html')
         rows = "\n".join(
             f'<div class="endpoint"><span class="method">{m}</span> '
             f"<code>{path}</code><p>{desc}</p></div>"

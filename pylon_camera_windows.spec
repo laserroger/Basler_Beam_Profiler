@@ -10,7 +10,7 @@ if not any(source.endswith('Spinnaker_GenTL_v140.cti') for source, _ in data):
 a = Analysis(
     ['pylon_camera.py'], pathex=[], binaries=binaries,
     datas=data + copy_metadata('spinnaker_python') + [
-        ('camera_config.yaml', '.'), ('docs/windows.md', 'docs'),
+        ('beam_profiler/templates', 'beam_profiler/templates'), ('camera_config.yaml', '.'), ('docs/windows.md', 'docs'),
         ('.vendor/windows/licenses', 'licenses/spinnaker')],
     hiddenimports=hidden, hookspath=[],
     runtime_hooks=['packaging_windows_hook.py'], excludes=['cupy'], noarchive=False,
