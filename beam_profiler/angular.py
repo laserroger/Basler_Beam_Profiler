@@ -41,7 +41,7 @@ class AngularMonitor:
             if not (ox <= x1 < x2 <= ox+w and oy <= y1 < y2 <= oy+h):
                 raise ValueError('Camera ROI must contain the entire green rectangle')
             region, bounds = crop_rect(frame, roi, rect)
-            spots = detect_spots(region, max_side=4096, cfg=cfg)
+            spots = detect_spots(region, max_pixels=4096 * 4096, cfg=cfg)
             result['detected_spots'] = len(spots)
             result['peak_raw'] = int(region.max())
             result.update(response_from_centers(

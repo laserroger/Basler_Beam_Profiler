@@ -119,7 +119,7 @@ All letter shortcuts accept either case, with or without Caps Lock.
 | `P` | Toggle single-beam profiler |
 | `G` | Show/hide statistics |
 | `H` | Show/hide row/column grid display; grid statistics are calculated automatically |
-| `A` | Toggle auto-exposure |
+| `A` | Open/close angular spot-spacing plot (grid-distortion branch; main uses this key for auto-exposure) |
 | `O` | Open settings |
 | ↑ / ↓ | Exposure ×10 / ÷10 |
 | → / ← | Exposure +10% / −10% |
@@ -153,6 +153,7 @@ the single-beam profiler has its own estimator.
 | Setting | Default | Available range / purpose |
 |---|---:|---|
 | Heatmap colors | Off | Heatmap or grayscale; raw pixels remain unchanged |
+| Focal length | 150 mm | 0.1–10,000 mm; angular spacing conversion (grid-distortion only) |
 | Crop half-width | 3.5 × σ | 1.5–12; fitting region around each spot |
 | Re-crop stages | 3 | 0–8; refine the fitting region |
 | Adaptive weight iterations | 0 | 0–20 |
