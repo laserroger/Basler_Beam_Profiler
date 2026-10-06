@@ -109,32 +109,65 @@ Put the `pylon_camera.exe` executable in the same directory as `camera_config.ya
 Saved frames (`data/`) and the live status file (`pylon_camera.json`) are written
 next to the executable.
 
-### Keyboard Shortcuts
-- `Esc`: Quit the application
-- `arrow keys`: up/down=change exposure by 10 times, left/right=change exposure by 10%
-- `a`: toggle auto-exposure (auto exposure adjusts the exposure time to keep the max intensity to be near-saturated)
-- `f`: toggle blob fitting
-- `g`: toggle statistics showing (statistics of fitted blobs)
-- `h`: toggle row/col statistics (works only for beam arrays)
-- `mouse drag`: create a white rectangle in the canvas
-- `c`: clear the white rectangle
-- `ctrl + mouse drag`: create a green rectangle in the canvas, only blobs inside the rectangle will be fitted
-- `v`: clear the green rectangle
-- `s`: quick save the current frame (JPEG + raw `.npy`)
-- `d`: save the current frame with dialogue box, allowing the user to choose the file location and name
-- `t`: switch to the next camera (if multiple cameras are connected)
-- `o`: open the spot-fitting settings window (crop size, re-crop stages, adaptive weighting, GPU backend)
-- `w`: toggle the HTTP server (port 5000), together with the live pixel statistics of the white rectangle drawn on the canvas
-- `y`: toggle the user-defined line output (Line3) used to sync external hardware
-- `mouse wheel`: zoom in/out the canvas (`ctrl + wheel`: change aspect ratio)
+### Camera-window controls
+
+All letter shortcuts accept either case, with or without Caps Lock.
+
+| Key / gesture | Action |
+|---|---|
+| `F` | Toggle multi-spot fitting; switches out of single-beam mode |
+| `P` | Toggle single-beam profiler |
+| `G` | Show/hide statistics |
+| `H` | Show/hide row/column grid display; grid statistics are calculated automatically |
+| `A` | Toggle auto-exposure |
+| `O` | Open settings |
+| ↑ / ↓ | Exposure ×10 / ÷10 |
+| → / ← | Exposure +10% / −10% |
+| Scroll | Zoom by changing the camera's hardware ROI |
+| Control or Shift + scroll | Change hardware ROI aspect ratio |
+| Click-drag | Draw white region for pixel statistics |
+| Control or Shift + click-drag | Draw green fitting region |
+| `C` | Clear white region |
+| `V` | Clear green region |
+| Hover | Show sensor coordinates and raw pixel intensity |
+| `S` | Save grayscale JPEG and raw `.npy` into `data/` |
+| `D` | Save with a filename/location dialog |
+| `T` | Switch to next connected camera |
+| `W` | Enable web view and white-region statistics; pressing again disables live statistics updates (the HTTP listener stays running) |
+| `Y` | Toggle configured camera output, where supported |
+| Esc / window close | Exit |
+
+A green fitting rectangle does not reduce camera readout. Hardware ROI changes do.
+Spot detection uses a 1,048,576-pixel budget, preserving aspect ratio: a long,
+narrow ROI below this budget is searched at full resolution. Fitting always uses
+full-resolution pixels. This budget is currently a code constant, not a setting.
 
 ## Spot fitting settings
 
-Press `o` for a settings window covering every parameter of the fit: the crop
-size, how many times the crop is re-derived from the fitted width, whether to
-use adaptive Gaussian weighting, and the CUDA backend. Changes take effect on
-the next frame and persist to `fit_config.json` next to the app; the same
-values are readable and writable over HTTP at `/api/fit_config`.
+Press **O** to open these settings. These are factory defaults; saved values
+may differ. Numeric changes apply after **Enter or leaving the field**, and are
+saved to `fit_config.json` in the app's writable data directory. Checkbox changes
+apply immediately. These crop/estimator controls configure multi-spot fitting;
+the single-beam profiler has its own estimator.
+
+| Setting | Default | Available range / purpose |
+|---|---:|---|
+| Heatmap colors | Off | Heatmap or grayscale; raw pixels remain unchanged |
+| Crop half-width | 3.5 × σ | 1.5–12; fitting region around each spot |
+| Re-crop stages | 3 | 0–8; refine the fitting region |
+| Adaptive weight iterations | 0 | 0–20 |
+| Seed crop | 2 × blob radius | 1–6 |
+| Subtract local background | On | Background subtraction during spot fitting |
+| Clip negatives to zero | Off | Clip negative background-subtracted values |
+| Max crop / neighbor distance | 0.5 | 0.1–1 |
+| Crop size quantum | 4 px | 1–32 |
+| Minimum crop | 3 px | 3–64 |
+| Maximum crop | 512 px | 16–4096 |
+| Use CUDA when available | On | NVIDIA acceleration; Apple Silicon uses CPU |
+| Minimum spots for CUDA | 400 | 1–100,000 |
+
+The window also provides **Restore defaults**, **Reload from file**, and **Close**.
+The same settings are available through `/api/fit_config`.
 
 Each control explains itself in the help pane. The defaults are measured
 optima rather than guesses. [`docs/fitting.md`](docs/fitting.md) walks through

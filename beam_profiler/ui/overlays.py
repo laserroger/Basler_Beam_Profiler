@@ -84,9 +84,9 @@ def draw_spot_stats(
 ) -> int:
     """Spot-spacing statistics: std bars, mean spacings, curvature and sigma."""
     bar_y = y + LINE_H
-    text(img, f"std(x): {std_dx:.2f}", (10, bar_y + 15), scale=0.8)
+    text(img, f"stdX: {std_dx:.2f} px", (10, bar_y + 15), scale=0.8)
     hbar(img, 170, bar_y, std_dx, factor=5)
-    text(img, f"std(y): {std_dy:.2f}", (320, bar_y + 15), scale=0.8)
+    text(img, f"stdY: {std_dy:.2f} px", (320, bar_y + 15), scale=0.8)
     hbar(img, 480, bar_y, std_dy, factor=5)
     text(img, f"Dx: {mean_dx_um:.1f} um", (630, bar_y + 15), scale=0.8)
     text(img, f"Dy: {mean_dy_um:.1f} um", (830, bar_y + 15), scale=0.8)

@@ -14,7 +14,7 @@ import numpy as np
 from .fit import fit_spot, fit_spots  # noqa: F401  (fit_spot re-exported)
 from .spots import SpotArray
 
-DETECT_MAX_SIDE = 1024  # longest edge used for blob search
+DETECT_MAX_PIXELS = 1024 * 1024  # total pixel budget for blob search
 MIN_DYNAMIC_RANGE = 0.02  # of full scale; below this the frame is considered empty
 
 
@@ -35,13 +35,13 @@ def _make_detector() -> cv2.SimpleBlobDetector:
 _DETECTOR = _make_detector()
 
 
-def detect_spots(img: np.ndarray, max_side: int = DETECT_MAX_SIDE, cfg=None) -> SpotArray:
+def detect_spots(img: np.ndarray, max_pixels: int = DETECT_MAX_PIXELS, cfg=None) -> SpotArray:
     """Detect Gaussian-like spots in a mono frame (uint8 or uint16).
 
     Returns a SpotArray with columns x, y (ROI pixel coords, sub-pixel),
     sigma_0/sigma_1 (major/minor widths), vec_0/vec_1 (principal axes),
     I0 (peak) and I0_weighted.  Indexing it yields the per-spot dicts."""
-    mask, scale = candidate_mask(img, max_side)
+    mask, scale = candidate_mask(img, max_pixels)
     if mask is None:
         return SpotArray.empty()
     keypoints = _DETECTOR.detect(mask)
@@ -53,14 +53,19 @@ def detect_spots(img: np.ndarray, max_side: int = DETECT_MAX_SIDE, cfg=None) -> 
     return fit_spots(img, x, y, radius, cfg)
 
 
-def candidate_mask(img: np.ndarray, max_side: int = DETECT_MAX_SIDE):
+def candidate_mask(img: np.ndarray, max_pixels: int = DETECT_MAX_PIXELS):
     """Binary spot mask on a downscale of the frame, plus the downscale factor.
 
+    Uses at most max_pixels samples, preserving the input aspect ratio.
     Returns (None, scale) when the frame carries no usable contrast."""
     h, w = img.shape
-    scale = min(1.0, max_side / max(h, w))
+    if max_pixels < 1:
+        raise ValueError("Detection pixel budget must be positive")
+    # Keep aspect ratio, but let a narrow strip spend its budget on width.
+    # The second bound also handles a one-pixel-wide/tall input safely.
+    scale = min(1.0, np.sqrt(max_pixels / (h * w)), max_pixels / max(h, w))
     small = (
-        cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+        cv2.resize(img, (max(1, int(w * scale)), max(1, int(h * scale))), interpolation=cv2.INTER_AREA)
         if scale < 1.0
         else img
     )
