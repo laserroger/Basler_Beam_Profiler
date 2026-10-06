@@ -237,7 +237,7 @@ class Viewer:
                 self._curvature(self.stats_dx),
                 self._curvature(self.stats_dy),
                 self.sigma_std_ema,
-                show_curvature=not self.row_col_fitting,
+                show_curvature=not self.row_col_fitting and not self._stats_grid_mode,
             )
             if self.row_col_fitting:
                 overlays.draw_grid_stats(
@@ -314,16 +314,29 @@ class Viewer:
         self.rows, self.columns, self.grid_stats = [], [], {}
 
     def _update_spot_stats(self, spots: SpotArray):
+        grid_mode = False
         if len(spots) > 1:
-            order = np.argsort(spots.x)
-            self.stats_dx = np.diff(spots.x[order])
-            self.stats_dy = np.diff(spots.y[order])
-            self.stats_sigma = spots.sigma
             self.rows, self.columns, self.grid_stats = classify_grid(spots, eps=20)
+            # H controls overlays, not the geometry used for measurements.
+            grid_mode = len(self.rows) >= 2 and len(self.columns) >= 2
+            if grid_mode:
+                # Never connect the end of one row to a spot in another row.
+                dx = [np.diff(row.x) for row in self.rows if len(row) > 1]
+                dy = [np.diff(col.y) for col in self.columns if len(col) > 1]
+                self.stats_dx = np.concatenate(dx) if dx else np.array([0.0])
+                self.stats_dy = np.concatenate(dy) if dy else np.array([0.0])
+            else:
+                order = np.argsort(spots.x)
+                self.stats_dx = np.diff(spots.x[order])
+                self.stats_dy = np.diff(spots.y[order])
+            self.stats_sigma = spots.sigma
         else:
             self._reset_spot_stats()
-        self.std_dx_ema = self.ema * self.std_dx_ema + (1 - self.ema) * float(np.std(self.stats_dx))
-        self.std_dy_ema = self.ema * self.std_dy_ema + (1 - self.ema) * float(np.std(self.stats_dy))
+        # Do not carry the previous mode's incompatible statistics into this one.
+        smoothing = self.ema if getattr(self, '_stats_grid_mode', None) == grid_mode else 0.0
+        self._stats_grid_mode = grid_mode
+        self.std_dx_ema = smoothing * self.std_dx_ema + (1 - smoothing) * float(np.std(self.stats_dx))
+        self.std_dy_ema = smoothing * self.std_dy_ema + (1 - smoothing) * float(np.std(self.stats_dy))
         self.sigma_std_ema = (
             self.ema * self.sigma_std_ema + (1 - self.ema) * float(np.std(self.stats_sigma))
         )
@@ -477,6 +490,8 @@ class Viewer:
 
     # ------------------------------ keys ---------------------------------- #
     def _handle_key(self, key: int) -> bool:
+        if ord("A") <= key <= ord("Z"):
+            key += ord("a") - ord("A")
         if key == 27:  # ESC
             return False
         if key in KEY_FACTORS:
