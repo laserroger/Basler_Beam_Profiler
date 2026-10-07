@@ -24,11 +24,11 @@ from ..config import (
     WINDOW_SIZE,
 )
 from .. import fitconfig
-from ..processing import SpotArray, classify_grid, detect_spots, gpu, region_stats
-from ..processing.profiler import fit_single_beam
-from ..processing.stats import crop_rect
+from ..processing import SpotArray, gpu
+from ..processing.pipeline import FrameProcessor, AnalysisOptions
+from ..session import LiveSession, SessionSnapshot
 from ..roi import ROIModel, ViewTransform
-from ..status import write_status
+from ..status import write_status, viewer_status
 from . import overlays, settings
 
 WINDOW = "Beam Profiler - Basler / FLIR"
@@ -71,14 +71,14 @@ class Viewer:
         self.fit_rect_sensor = None
 
         self.avg_dt = 1 / FPS_LIMIT
-        self.ema = 0.8  # smoothing for the displayed std figures
-        self.std_dx_ema = self.std_dy_ema = self.sigma_std_ema = 0.0
-        self._reset_spot_stats()
+        self.processor = FrameProcessor()
+        self.statistics = self.processor.statistics
+        self.analysis = None
+        self.session = LiveSession()
 
-        # shared with the HTTP server
+        # Current display state; HTTP consumers use the published session snapshot.
         self.current_frame = None
         self.latest_spots = SpotArray.empty()
-        self.latest_stats: dict = {}
         self.current_rect_stats = None
         self.web_server_enabled = False
         self.show_rect_stats = False
@@ -138,6 +138,7 @@ class Viewer:
             settings.pump_events()
             if self._quit_requested or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                 break
+            self._apply_web_commands()
             self._apply_scroll()
             t0 = time.time()
             frame = self.camera.grab_image()
@@ -153,22 +154,12 @@ class Viewer:
             )
             self.frame_disp = frame_disp
 
-            self.current_rect_stats = (
-                region_stats(frame, self.camera.ROI, self.rect_sensor, self.camera.pixel_size)
-                if self.show_rect_stats
-                else None
-            )
+            self._analyze_frame(frame)
+            self.session.publish(SessionSnapshot(
+                result=self.analysis, status=viewer_status(self),
+            ))
 
-            if self.profiler_enabled:
-                spots = self._profile(frame)
-            else:
-                spots = self._detect(frame) if self.do_fitting else SpotArray.empty()
-            self.latest_spots = spots  # columnar; server.py serialises on request
-            self._update_spot_stats(spots)
-            if self.web_server_enabled:
-                self._update_web_stats()
-
-            disp = self._compose(frame_disp, spots)
+            disp = self._compose(frame_disp, self.latest_spots)
             cv2.imshow(WINDOW, disp)
             if not self._poll_keys(1):
                 break
@@ -177,28 +168,28 @@ class Viewer:
                 break
             self._sleep_for_fps(time.time() - t0)
 
-    def _detect(self, frame) -> SpotArray:
-        spots = detect_spots(frame)
-        if self.fit_rect_sensor is None or not len(spots):
-            return spots
-        _, _, ox, oy = self.camera.ROI
-        x1, y1, x2, y2 = self.fit_rect_sensor
-        sx, sy = ox + spots.x, oy + spots.y
-        return spots[(sx >= x1) & (sx <= x2) & (sy >= y1) & (sy <= y2)]
+    def _analyze_frame(self, frame):
+        self.analysis = self.processor.process(
+            frame, roi=self.camera.ROI, pixel_size=self.camera.pixel_size,
+            full_scale=self.camera.saturation,
+            options=AnalysisOptions(
+                fitting=self.do_fitting, profiler=self.profiler_enabled,
+                fit_rect=self.fit_rect_sensor, rect=self.rect_sensor,
+                rect_stats=self.show_rect_stats,
+            ),
+        )
+        self.current_frame = self.analysis.frame
+        self.latest_spots = self.analysis.spots
+        self.statistics = self.analysis.statistics
+        self.current_rect_stats = self.analysis.rect_stats
+        self.profiler_message = self.analysis.profiler_message
 
-    def _profile(self, frame) -> SpotArray:
-        x0 = y0 = 0
-        if self.fit_rect_sensor is not None:
-            cropped = crop_rect(frame, self.camera.ROI, self.fit_rect_sensor)
-            if cropped is None:
-                self.profiler_message = 'Fitting region is outside the camera ROI'
-                return SpotArray.empty()
-            frame, (x0, y0, _, _) = cropped
-        result = fit_single_beam(frame)
-        self.profiler_message = result.message
-        result.spots.x += x0
-        result.spots.y += y0
-        return result.spots
+    def _apply_web_commands(self):
+        for name, value in self.session.take_commands():
+            if name == "fit_config":
+                fitconfig.set_active(fitconfig.active().replace(**value))
+            else:
+                setattr(self, name, value)
 
     def _compose(self, frame_disp, spots) -> np.ndarray:
         """Resize + pad the frame to the window and draw all overlays.
@@ -220,8 +211,9 @@ class Viewer:
             cv2.BORDER_CONSTANT,
             value=PAD_COLOR,
         )
+        saturated = self.analysis.saturated
         if len(spots) and (self.profiler_enabled or not self.row_col_fitting):
-            overlays.draw_spots(disp, spots, view, self.camera.pixel_size)
+            overlays.draw_spots(disp, spots, view, self.camera.pixel_size, saturated=saturated)
 
         y = overlays.draw_hud(disp, self._hud_lines())
         if self.show_rect_stats:
@@ -230,23 +222,30 @@ class Viewer:
             bar_y = overlays.draw_spot_stats(
                 disp,
                 y,
-                self.std_dx_ema,
-                self.std_dy_ema,
-                float(np.mean(self.stats_dx)) * self.camera.pixel_size * 1e6,
-                float(np.mean(self.stats_dy)) * self.camera.pixel_size * 1e6,
-                self._curvature(self.stats_dx),
-                self._curvature(self.stats_dy),
-                self.sigma_std_ema,
-                show_curvature=not self.row_col_fitting and not self._stats_grid_mode,
+                self.statistics.std_dx_ema,
+                self.statistics.std_dy_ema,
+                float(np.mean(self.statistics.stats_dx)) * self.camera.pixel_size * 1e6,
+                float(np.mean(self.statistics.stats_dy)) * self.camera.pixel_size * 1e6,
+                self.statistics.curvature(self.statistics.stats_dx),
+                self.statistics.curvature(self.statistics.stats_dy),
+                self.statistics.sigma_std_ema,
+                show_curvature=not self.row_col_fitting and not self.statistics._stats_grid_mode,
             )
             if self.row_col_fitting:
                 overlays.draw_grid_stats(
-                    disp, bar_y, self.rows, self.columns, self.grid_stats,
+                    disp, bar_y, self.statistics.rows, self.statistics.columns, self.statistics.grid_stats,
                     self.camera.pixel_size * 1e6,
                 )
         self._draw_rectangles(disp, view)
         if self.row_col_fitting and self.do_fitting and not self.profiler_enabled:
-            overlays.draw_row_col(disp, view, self.rows, self.columns)
+            overlays.draw_row_col(disp, view, self.statistics.rows, self.statistics.columns)
+        # Keep warnings visible even when row/column overlays replace ellipses.
+        if self.row_col_fitting and np.any(saturated):
+            overlays.draw_spots(disp, spots[saturated], view, self.camera.pixel_size,
+                                saturated=np.ones(np.count_nonzero(saturated), dtype=bool))
+        if np.any(saturated):
+            overlays.text(disp, f"SATURATED: {np.count_nonzero(saturated)} beam(s) - reduce exposure; fit unreliable",
+                          (10, WINDOW_SIZE - 18), (0, 0, 255), scale=0.65)
         return disp
 
     def _hover_pixel(self):
@@ -309,72 +308,6 @@ class Viewer:
                 cv2.rectangle(disp, p1, p2, color, 2)
 
     # ------------------------------ statistics ---------------------------- #
-    def _reset_spot_stats(self):
-        self.stats_dx = self.stats_dy = self.stats_sigma = np.array([0.0])
-        self.rows, self.columns, self.grid_stats = [], [], {}
-
-    def _update_spot_stats(self, spots: SpotArray):
-        grid_mode = False
-        if len(spots) > 1:
-            self.rows, self.columns, self.grid_stats = classify_grid(spots, eps=20)
-            # H controls overlays, not the geometry used for measurements.
-            grid_mode = len(self.rows) >= 2 and len(self.columns) >= 2
-            if grid_mode:
-                # Never connect the end of one row to a spot in another row.
-                dx = [np.diff(row.x) for row in self.rows if len(row) > 1]
-                dy = [np.diff(col.y) for col in self.columns if len(col) > 1]
-                self.stats_dx = np.concatenate(dx) if dx else np.array([0.0])
-                self.stats_dy = np.concatenate(dy) if dy else np.array([0.0])
-            else:
-                order = np.argsort(spots.x)
-                self.stats_dx = np.diff(spots.x[order])
-                self.stats_dy = np.diff(spots.y[order])
-            self.stats_sigma = spots.sigma
-        else:
-            self._reset_spot_stats()
-        # Do not carry the previous mode's incompatible statistics into this one.
-        smoothing = self.ema if getattr(self, '_stats_grid_mode', None) == grid_mode else 0.0
-        self._stats_grid_mode = grid_mode
-        self.std_dx_ema = smoothing * self.std_dx_ema + (1 - smoothing) * float(np.std(self.stats_dx))
-        self.std_dy_ema = smoothing * self.std_dy_ema + (1 - smoothing) * float(np.std(self.stats_dy))
-        self.sigma_std_ema = (
-            self.ema * self.sigma_std_ema + (1 - self.ema) * float(np.std(self.stats_sigma))
-        )
-
-    @staticmethod
-    def _curvature(deltas) -> float:
-        """Mean second difference of the spot spacings (sign = bow direction)."""
-        return float(np.mean(np.diff(deltas))) if len(deltas) > 1 else 0.0
-
-    def _update_web_stats(self):
-        um = self.camera.pixel_size * 1e6
-        stats = {
-            "basic_stats": {
-                "dx_std": float(np.std(self.stats_dx)),
-                "dy_std": float(np.std(self.stats_dy)),
-                "dx_mean_um": float(np.mean(self.stats_dx)) * um,
-                "dy_mean_um": float(np.mean(self.stats_dy)) * um,
-                "sigma_std": self.sigma_std_ema,
-            }
-        }
-        if self.grid_stats:
-            grid = {
-                axis: {
-                    k: v for k, v in axis_stats.items() if isinstance(v, (int, float))
-                }
-                for axis, axis_stats in self.grid_stats.items()
-            }
-            for axis in grid:
-                for key in list(grid[axis]):
-                    if key.startswith("avg_"):
-                        grid[axis][f"{key}_um"] = grid[axis][key] * um
-            stats["grid_stats"] = grid
-            stats["row_col_counts"] = {
-                "num_rows": len(self.rows),
-                "num_columns": len(self.columns),
-            }
-        self.latest_stats = stats
-
     # ------------------------------ mouse --------------------------------- #
     def _apply_scroll(self):
         zoom, aspect = self._pending_scroll
@@ -608,6 +541,7 @@ class Viewer:
             profiler_enabled=self.profiler_enabled,
             show_stats=self.show_stats,
         )
+        self.processor = FrameProcessor()
         self.curr_idx = (self.curr_idx + 1) % len(self.cameras)
         self.camera = self.cameras[self.curr_idx]
         st = self._cached_state.get(self.camera.serial)
@@ -639,7 +573,7 @@ class Viewer:
             if self._web_thread is None:
                 from ..server import create_app
 
-                app = create_app(self)
+                app = create_app(self.session)
                 self._web_thread = Thread(
                     target=lambda: app.run(
                         host="0.0.0.0", port=WEB_SERVER_PORT, debug=False, use_reloader=False

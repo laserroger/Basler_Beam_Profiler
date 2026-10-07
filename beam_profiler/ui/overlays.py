@@ -132,13 +132,15 @@ def draw_grid_stats(img, bar_y: int, rows, columns, grid_stats: dict, pixel_to_u
         )
 
 
-def draw_spots(img, spots, view: ViewTransform, pixel_size: float, min_label_radius: int = 15):
+def draw_spots(img, spots, view: ViewTransform, pixel_size: float, min_label_radius: int = 15, saturated=None):
     """Draw fitted ellipses and labels in display space, so line widths and
     text stay the same size at every zoom level.  Labels are skipped for spots
     too small on screen to keep dense arrays readable."""
     BGR_GREEN, BGR_RED, BGR_BLUE = (0, 255, 0), (255, 0, 0), (0, 0, 255)
     if not isinstance(spots, SpotArray):
         spots = SpotArray.from_dicts(spots)
+    if saturated is None:
+        saturated = np.zeros(len(spots), dtype=bool)
     # the per-spot geometry is computed for the whole array up front; only the
     # cv2 draw calls have to happen one spot at a time
     cx, cy = view.roi_to_display_many(spots.x, spots.y)
@@ -158,7 +160,8 @@ def draw_spots(img, spots, view: ViewTransform, pixel_size: float, min_label_rad
         centre = (int(cx[i]), int(cy[i]))
         cv2.ellipse(
             img, centre, (int(axis0[i]), int(axis1[i])),
-            float(angle[i]), 0, 360, BGR_GREEN, 2,
+            float(angle[i]), 0, 360, (0, 0, 255) if saturated[i] else BGR_GREEN,
+            4 if saturated[i] else 2,
         )
         if not labelled[i]:
             continue

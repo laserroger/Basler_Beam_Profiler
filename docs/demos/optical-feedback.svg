@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="570" viewBox="0 0 1200 570" role="img" aria-labelledby="title desc">
+<title id="title">SLM, lens and camera optical feedback loop</title>
+<desc id="desc">Laser light passes through the schematic SLM and lens to a camera at the focal plane. Beam Profiler sends camera measurements to an external optimizer, which updates the SLM phase pattern. A browser displays the camera readout. Optical folds are omitted.</desc>
+<defs>
+ <marker id="light" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#16805d"/></marker>
+ <marker id="data" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#b45b18"/></marker>
+ <pattern id="phase" width="16" height="16" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#637ab8"/><rect width="8" height="8" fill="#c8d3f0"/><rect x="8" y="8" width="8" height="8" fill="#293f79"/></pattern>
+</defs>
+<rect width="1200" height="570" rx="16" fill="#f8fafc"/>
+<g font-family="Arial, Helvetica, sans-serif" fill="#172c43" text-anchor="middle">
+ <text x="600" y="42" font-size="26" font-weight="bold">Camera feedback for optical optimization</text>
+ <text x="600" y="72" font-size="16" fill="#536579">Optical arrangement shown schematically; folds omitted</text>
+ <rect x="55" y="151" width="135" height="62" rx="8" fill="#e1e8ee" stroke="#52667b" stroke-width="2"/>
+ <text x="122" y="190" font-size="22">Laser</text>
+ <path d="M190 182H318" stroke="#16805d" stroke-width="4" marker-end="url(#light)"/>
+ <rect x="330" y="112" width="48" height="140" fill="url(#phase)" stroke="#293f79" stroke-width="2"/>
+ <text x="354" y="98" font-size="22" font-weight="bold">SLM</text>
+ <text x="354" y="282" font-size="17">Phase pattern</text>
+ <path d="M378 132H640M378 182H640M378 232H640" stroke="#16805d" stroke-width="2" opacity=".8"/>
+ <ellipse cx="651" cy="182" rx="15" ry="88" fill="#b7e6ef" fill-opacity=".85" stroke="#258399" stroke-width="2"/>
+ <text x="715" y="112" font-size="22" font-weight="bold">Lens</text>
+ <path d="M666 132L963 182M666 182L963 182M666 232L963 182" stroke="#16805d" stroke-width="2" opacity=".8"/>
+ <path d="M965 105V259" stroke="#536579" stroke-width="2" stroke-dasharray="5 5"/>
+ <rect x="976" y="136" width="160" height="95" rx="9" fill="#203c59"/>
+ <circle cx="996" cy="161" r="5" fill="#78e5a2"/><circle cx="996" cy="182" r="5" fill="#78e5a2"/><circle cx="996" cy="203" r="5" fill="#78e5a2"/>
+ <text x="1060" y="189" font-size="22" fill="white">Camera</text>
+ <text x="967" y="286" font-size="17">Focal-plane intensity</text>
+ <path d="M666 308H961" stroke="#758393" stroke-width="1"/>
+ <path d="M666 303V313M961 303V313" stroke="#758393"/>
+ <text x="815" y="332" font-size="17">f</text>
+ <rect x="888" y="367" width="249" height="64" rx="9" fill="#e7eff7" stroke="#607c98"/>
+ <text x="1012" y="406" font-size="22">Beam Profiler / API</text>
+ <rect x="448" y="367" width="255" height="64" rx="9" fill="#fff1df" stroke="#b45b18"/>
+ <text x="575" y="406" font-size="22">Gerchberg–Saxton</text>
+ <rect x="68" y="367" width="190" height="64" rx="9" fill="#fff1df" stroke="#b45b18"/>
+ <text x="163" y="406" font-size="22">Target pattern</text>
+ <rect x="895" y="485" width="235" height="54" rx="9" fill="#e7eff7" stroke="#607c98"/>
+ <text x="1012" y="519" font-size="21">Web browser</text>
+ <g fill="none" stroke="#b45b18" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#data)">
+  <path d="M1060 231V363"/>
+  <path d="M888 399H708"/>
+  <path d="M258 399H443"/>
+  <path d="M575 367V345H354V292"/>
+  <path d="M1012 431V480"/>
+ </g>
+ <text x="786" y="385" font-size="16">Measurements</text>
+ <text x="787" y="422" font-size="14">positions / intensities</text>
+ <text x="468" y="326" font-size="16">Updated SLM phase</text>
+ <text x="725" y="502" font-size="16" fill="#16805d">Solid: light</text>
+ <text x="723" y="527" font-size="16" fill="#b45b18">Dashed: data / control</text>
+ <text x="303" y="501" font-size="16" fill="#536579">Optimizer and SLM driver are external.</text>
+ <text x="303" y="525" font-size="16" fill="#536579">Beam Profiler supplies the camera feedback.</text>
+</g>
+</svg>

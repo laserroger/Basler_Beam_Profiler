@@ -9,6 +9,22 @@ All rectangle coordinates are **sensor** coordinates `[x1, y1, x2, y2]`, not
 display coordinates. The white rectangle (`rect`) and the green fitting
 rectangle (`fit_rect`) are handled by separate endpoints.
 
+Each request reads one complete frame snapshot. Image geometry, fitting results
+and statistics cannot come from different frames within that response.
+The `timestamp` in measurement responses identifies the processing time of the
+published frame, rather than the HTTP request time.
+
+Rectangle and fitting-setting writes are queued for the acquisition thread and
+applied before its next frame. After a write, wait for a new measurement timestamp
+before reading its effects. Settings PUT returns the accepted configuration;
+settings GET returns the currently applied configuration. These endpoints do
+not access native windows or camera drivers from the HTTP thread.
+
+`/api/spots` also includes a `saturated` Boolean array, aligned with `spots`, and
+`profiler_message`. Saturated fits are unreliable; reduce exposure before using
+their sizes for optimization. W can hide rectangle statistics without stopping
+HTTP updates.
+
 ## Read
 
 | Endpoint | Description |
