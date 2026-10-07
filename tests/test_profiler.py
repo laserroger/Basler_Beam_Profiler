@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from beam_profiler.processing.profiler import fit_single_beam
+from beam_profiler.processing.pipeline import profile_region
 from beam_profiler.processing.spots import SpotArray
 from beam_profiler.ui.viewer import Viewer
 
@@ -74,12 +75,14 @@ def test_selected_region_uses_sensor_offset_and_ignores_outside_pixels():
     viewer.fit_rect_sensor = (180, 140, 1204, 908)
     frame = np.full((1000, 1200), 65535, np.uint16)
     frame[100:868, 100:1124] = beam()
-    spot = viewer._profile(frame)[0]
+    result = profile_region(frame, viewer.camera.ROI, viewer.fit_rect_sensor)
+    spot = result.spots[0]
     assert spot['x'] == pytest.approx(600, abs=.5)
     assert spot['y'] == pytest.approx(490, abs=.5)
     viewer.fit_rect_sensor = (2000, 2000, 2100, 2100)
-    assert not len(viewer._profile(frame))
-    assert 'outside' in viewer.profiler_message
+    result = profile_region(frame, viewer.camera.ROI, viewer.fit_rect_sensor)
+    assert not len(result.spots)
+    assert 'outside' in result.message
 
 
 def test_p_toggles_profiler_independently_of_array_fitting(monkeypatch):

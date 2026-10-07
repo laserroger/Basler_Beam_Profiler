@@ -9,11 +9,11 @@ from dataclasses import asdict
 from io import BytesIO
 
 import cv2
-from flask import Flask, jsonify, request, send_file, render_template
+from flask import Flask, jsonify, request, send_file, render_template, g
 
 from . import fitconfig
 from .processing import crop_rect, region_stats
-from .status import viewer_status
+from .session import LiveSession
 
 ENDPOINTS = [
     ("GET", "/angular", "Single-shot angular-response plot (when enabled)."),
@@ -33,8 +33,14 @@ ENDPOINTS = [
 ]
 
 
-def create_app(viewer) -> Flask:
+def create_app(session: LiveSession) -> Flask:
     app = Flask(__name__)
+
+    @app.before_request
+    def read_snapshot():
+        g.snapshot = session.read()
+        g.result = g.snapshot.result
+
 
     @app.route('/angular')
     def angular_page():
@@ -42,17 +48,15 @@ def create_app(viewer) -> Flask:
 
     @app.route('/api/angular')
     def angular_data():
-        monitor = getattr(viewer, 'angular_monitor', None)
-        if monitor is None:
+        if g.snapshot.angular is None:
             return jsonify(valid=False, error='Angular monitor is not enabled'), 409
-        return jsonify(monitor.latest)
+        return jsonify(g.snapshot.angular)
 
     @app.route('/api/preview')
     def camera_preview():
-        snapshot = getattr(viewer, 'preview_snapshot', None)
-        if snapshot is None:
+        if g.result is None:
             return jsonify(error='Waiting for camera frame'), 503
-        frame, roi, rect = snapshot
+        frame, roi, rect = g.result.frame, g.result.roi, g.result.options.fit_rect
         gray = cv2.convertScaleAbs(frame, alpha=1/256.) if frame.dtype.itemsize == 2 else frame
         preview = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
         if rect is not None:
@@ -66,12 +70,12 @@ def create_app(viewer) -> Flask:
         return response
 
     def rect_stats_response(rect, label):
-        if viewer.current_frame is None:
+        if g.result is None:
             return jsonify({"error": "No frame available"}), 400
         if rect is None:
             return jsonify({"error": f"No {label} defined"}), 400
         stats = region_stats(
-            viewer.current_frame, viewer.camera.ROI, rect, viewer.camera.pixel_size
+            g.result.frame, g.result.roi, rect, g.result.pixel_size
         )
         if stats is None:
             return jsonify({"error": f"{label} outside of ROI"}), 400
@@ -83,77 +87,88 @@ def create_app(viewer) -> Flask:
             {
                 "rectangle_bounds": {k: stats[k] for k in bounds_keys},
                 "pixel_stats": {k: v for k, v in stats.items() if k not in bounds_keys},
-                "timestamp": time.time(),
+                "timestamp": g.result.timestamp,
             }
         )
 
     def jpeg_response(img):
-        if viewer.camera.mode == "16Bit":
+        if img.dtype.itemsize == 2:
             img = cv2.convertScaleAbs(img, alpha=1 / 256.0)
         _, buffer = cv2.imencode(".jpg", img)
         return send_file(BytesIO(buffer.tobytes()), mimetype="image/jpeg")
 
     def parse_coords():
         data = request.get_json()
-        if not data or "coords" not in data:
+        if not isinstance(data, dict) or "coords" not in data:
             return None, (jsonify({"error": "Invalid request data"}), 400)
         coords = data["coords"]
-        if len(coords) != 4:
+        if not isinstance(coords, (list, tuple)) or len(coords) != 4:
             return None, (jsonify({"error": "Coordinates must be [x1, y1, x2, y2]"}), 400)
-        return tuple(int(c) for c in coords), None
+        try:
+            return tuple(int(c) for c in coords), None
+        except (TypeError, ValueError, OverflowError):
+            return None, (jsonify({"error": "Coordinates must be finite numbers"}), 400)
 
     @app.route("/api/status")
     def get_status():
-        return jsonify(viewer_status(viewer))
+        return jsonify(g.snapshot.status)
 
     @app.route("/api/rect_stats")
     def get_rect_stats():
-        return rect_stats_response(viewer.rect_sensor, "rectangle")
+        return rect_stats_response(g.result.options.rect if g.result else None, "rectangle")
 
     @app.route("/api/fit_rect_stats")
     def get_fit_rect_stats():
-        return rect_stats_response(viewer.fit_rect_sensor, "fitting rectangle")
+        return rect_stats_response(g.result.options.fit_rect if g.result else None, "fitting rectangle")
 
     @app.route("/api/spots")
     def get_spots():
-        spots = viewer.latest_spots  # SpotArray; serialised here so the main
-        return jsonify(  # loop never pays for it when nobody is polling
+        if g.result is None:
+            return jsonify(spots=[], spot_count=0, stats={}, timestamp=time.time())
+        spots = g.result.spots
+        return jsonify(
             {
                 "spots": spots.to_json(),
                 "spot_count": len(spots),
-                "stats": viewer.latest_stats,
-                "timestamp": time.time(),
+                "stats": g.result.statistics.summary(g.result.pixel_size),
+                "saturated": g.result.saturated.tolist(),
+                "profiler_message": g.result.profiler_message,
+                "timestamp": g.result.timestamp,
             }
         )
 
     @app.route("/api/fit_config", methods=["GET", "PUT"])
     def fit_config():
+        config = fitconfig.active()
         if request.method == "PUT":
             body = request.get_json(silent=True) or {}
+            if not isinstance(body, dict):
+                return jsonify(error="Expected a settings object"), 400
             unknown = set(body) - {s.name for s in fitconfig.SETTINGS}
             if unknown:
                 return jsonify({"error": f"unknown settings: {sorted(unknown)}"}), 400
-            fitconfig.set_active(fitconfig.active().replace(**body))
+            config = config.replace(**body)
+            session.set_fit_config(body)
         return jsonify(
             {
-                "config": asdict(fitconfig.active()),
+                "config": asdict(config),
                 "settings": [asdict(s) for s in fitconfig.SETTINGS],
             }
         )
 
     @app.route("/api/image")
     def get_image():
-        if viewer.current_frame is None:
+        if g.result is None:
             return jsonify({"error": "No frame available"}), 400
-        return jpeg_response(viewer.current_frame)
+        return jpeg_response(g.result.frame)
 
     @app.route("/api/image_within_rect")
     def get_image_within_rect():
-        if viewer.current_frame is None:
+        if g.result is None:
             return jsonify({"error": "No frame available"}), 400
-        if viewer.rect_sensor is None:
+        if g.result.options.rect is None:
             return jsonify({"error": "No rectangle defined"}), 400
-        cropped = crop_rect(viewer.current_frame, viewer.camera.ROI, viewer.rect_sensor)
+        cropped = crop_rect(g.result.frame, g.result.roi, g.result.options.rect)
         if cropped is None:
             return jsonify({"error": "Rectangle outside of ROI"}), 400
         return jpeg_response(cropped[0])
@@ -163,7 +178,7 @@ def create_app(viewer) -> Flask:
         coords, error = parse_coords()
         if error:
             return error
-        viewer.rect_sensor = coords
+        session.set_region('rect_sensor', coords)
         return jsonify({"message": "Rectangle set successfully", "coords": coords})
 
     @app.route("/api/set_fit_rect", methods=["POST"])
@@ -171,22 +186,22 @@ def create_app(viewer) -> Flask:
         coords, error = parse_coords()
         if error:
             return error
-        viewer.fit_rect_sensor = coords
+        session.set_region('fit_rect_sensor', coords)
         return jsonify({"message": "Fitting rectangle set successfully", "coords": coords})
 
     @app.route("/api/clear_rect", methods=["POST"])
     def clear_rect():
-        viewer.rect_sensor = None
+        session.set_region('rect_sensor', None)
         return jsonify({"message": "Rectangle cleared"})
 
     @app.route("/api/clear_fit_rect", methods=["POST"])
     def clear_fit_rect():
-        viewer.fit_rect_sensor = None
+        session.set_region('fit_rect_sensor', None)
         return jsonify({"message": "Fitting rectangle cleared"})
 
     @app.route("/")
     def index():
-        if getattr(viewer, 'angular_monitor', None) is not None:
+        if g.snapshot.angular is not None:
             return render_template('angular.html')
         rows = "\n".join(
             f'<div class="endpoint"><span class="method">{m}</span> '

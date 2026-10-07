@@ -1,117 +1,134 @@
-# Basler / FLIR Beam Profiler for macOS
+# Beam Profiler
 
-**Mac + FLIR:** double-click `Launch FLIR.command`, or run `./run.sh --camera flir`.
-See [Mac setup, controls, and tested capabilities](docs/macos.md). This version
-supports the connected BFS-U3-31S4M-C and keeps the original shared analysis tools.
-Basler users additionally install `requirements-basler.txt`.
+Live laser-beam profiling with **Basler and FLIR cameras**, with standalone apps
+for **Windows and Apple Silicon macOS**. Measure a single beam or an array of
+spots, inspect raw pixel intensities, and save full-depth camera frames.
 
-A Python application for live laser-beam profiling with Basler cameras: spot
-detection, sub-pixel 2D Gaussian fits, beam-array (grid) statistics, an HTTP
-API and hardware sync outputs.
+[Download the latest release](https://github.com/laserroger/Basler_Beam_Profiler/releases/latest)
+· [macOS setup](docs/macos.md) · [Windows setup](docs/windows.md)
+· [Camera catalog](docs/camera-catalog.md)
 
-![Demo](docs/demo.png)
+> **This is the `grid-distortion` branch.** It includes the released app's tools
+> plus an experimental angular-spacing plot. Here, **A opens that plot**; on
+> [main](https://github.com/laserroger/Basler_Beam_Profiler/tree/main), **A toggles
+> auto-exposure**. Release downloads are built from main.
 
-## Usage
+## Install and start
 
-```bash
-pip install -r requirements.txt
-python -m beam_profiler            # live camera (falls back to the simulator)
-python -m beam_profiler --sim      # simulated camera, no hardware needed
-python pylon_camera.py             # legacy entry point, same application
-```
+The release downloads include Python and the camera runtime libraries. You do
+not need to clone this repository or install Python to use them.
 
-### Single-beam profiler
+| Platform | Download | Start |
+|---|---|---|
+| Windows x64 | `BeamProfiler-Windows-x64-Setup.exe` | Run the installer, approve driver installation, then launch Beam Profiler |
+| Apple Silicon, macOS 26+ | `pylon_camera-macos-arm64.dmg` | Open the disk image, drag `pylon_camera.app` into Applications, then open it |
 
-Press **P** in the viewer to toggle the single-beam profiler. It fits one rotated
-elliptical Gaussian plus a constant background over the whole camera image,
-without blob detection or spot crop limits. Shift-drag a green fitting rectangle
-to restrict the fit; press `v` to clear it. The overlay reports 1/e² radii and
-flags beams that reach the region boundary. This is a Gaussian model estimate,
-not an ISO second-moment measurement. Saturated or insufficient-contrast images
-produce a diagnostic rather than a fitted ellipse. Press P again to return to
-the previous array-fitting mode. Press `f` or `F` to switch directly to multi-beam
-fitting; press it again to turn multi-beam fitting off. Profiler calculations
-currently run on the CPU.
+The macOS app is ad-hoc signed, not notarized. If macOS blocks it, follow the
+opening instructions in the [Mac guide](docs/macos.md).
 
-### Simulated camera
+Connect the camera and close any other application using it. The default launch
+searches for FLIR and Basler cameras. **If no hardware opens, auto mode falls back
+to simulated data.** When running from source, use `--camera flir` or
+`--camera basler` to require real hardware and report a connection failure.
 
-`--sim` (or having no camera connected) renders a fixed grid of Gaussian spots
-with realistic noise in real time, so every CV function — blob detection,
-Gaussian fitting, row/column statistics, auto-exposure — can be exercised
-without hardware:
+## Use cases
 
-```bash
-python -m beam_profiler --sim --sim-grid 8x8 --sim-jitter 0   # static 8x8 grid
-python -m beam_profiler --sim --sim-size 4096x4096 --sim-grid 80x80   # dense array
-```
+These animations use the application's simulator, fitting code and viewer overlays.
+Their 12 FPS playback is for illustration, not a camera-speed measurement.
 
-The spot sigma defaults to pitch/10 (beam waist = 1/5 of the spot spacing);
-override with `--sim-sigma <px>`.
+### Beam profiler: locate and fit a moving beam
 
-Fixed spot pictures with ground-truth JSON (for offline testing) are generated
-with:
+Press **P** to locate a beam and fit its position, elliptical shape and size on
+each frame. The fit uses the current frame, without temporal averaging. A smaller
+camera ROI can reduce processing time; the viewer's upper limit is 60 FPS, and
+actual performance depends on the camera, exposure and computation.
 
-```bash
-python tools/make_test_images.py   # writes test_images/*.png/.npy/.json
-```
+![Simulated moving beam with per-frame center and Gaussian fit](docs/demos/beam.gif)
 
-### Architecture
+The overlay reports **1/e² radii**, not diameters or FWHM. The model is a rotated
+elliptical Gaussian plus a constant background, not an ISO second-moment
+measurement. Diagnostics identify insufficient contrast, saturation or a fitted
+contour extending beyond the selected region.
 
-```
-beam_profiler/
-├── __main__.py        CLI entry point
-├── config.py          paths, constants, camera_config.yaml loading
-├── synthetic.py       synthetic spot images (simulator, tests, tools)
-├── roi.py             ROI zoom model + sensor<->display mapping
-├── cameras/           base.py (interface + auto-exposure), basler.py, simulated.py
-├── processing/        blobs.py (detection + Gaussian fits), grid.py, stats.py
-├── ui/                viewer.py (main loop, input), overlays.py (HUD, bars)
-├── server.py          Flask HTTP API
-└── status.py          pylon_camera.json mirror
-```
+### Check for saturation
 
-Spot detection runs on a ≤1024 px downscale of the frame and refines each spot
-with a sub-pixel moment fit on a full-resolution crop, so even 25 MP sensors
-profile at interactive rates.
+A **green outline** means no pixels within that fitted ellipse reach the
+saturation warning threshold. A **thick red outline** means at least one raw
+pixel reaches 99.9% of the camera's output range. The tolerance covers cameras
+that store 10/12-bit samples left-aligned in 16-bit frames. This checks raw data,
+not heatmap colors, and applies to single beams, arrays and grid overlays.
 
-### Tests
+![Simulator exposure sweep showing green and thick red saturation outlines](docs/demos/saturation.gif)
 
-```bash
-pip install pytest
-pytest
-```
+![Unsaturated and saturated simulator beams compared](docs/demos/saturation-comparison.png)
 
-The tests validate the CV pipeline against synthetic images with known ground
-truth (positions, widths, orientation, grid classification).
+Reduce exposure until the red warning disappears. Saturation clips the beam
+peak and biases the fit; the red ellipse is an approximate warning outline,
+not a trustworthy size measurement. Green alone does not guarantee a good
+Gaussian fit. A hot pixel inside the ellipse can also trigger the warning.
+A completely clipped, featureless image cannot produce a fitted outline.
 
-### Configuring the camera
+### Beam-array alignment: positions, spacing and statistics
 
-`camera_config.yaml`
+Press **F** to fit individual spots and **G** to show statistics. In this example,
+a row starts with nonuniform spacing and vertical offsets, approaches alignment,
+and moves away again. Fitted centers and spacing statistics follow the changes.
 
-The bundled [camera catalog](docs/camera-catalog.md) includes verified FLIR and
-Basler sensor sizes and pixel pitches, with a manufacturer source for each entry.
-Installed apps load new bundled models alongside your saved configuration.
+![Simulated row of beams approaching uniform spacing and alignment](docs/demos/array.gif)
 
-```yaml
-cameras:
-  a2A5060-15umBAS:                     # must match the camera model name
-    default_roi: [5060, 5060, 4, 4]    # [width, height, x_pad, y_pad]
-    pixel_size: 2.5e-6                 # pixel size in meters, i.e. 2.5um
-```
+### Grid alignment: identify spacing and alignment deviations
 
-### Using the compiled application
+Press **F**, **G** and **H** to fit spots, show statistics and connect their rows
+and columns. This simulated grid starts with positional deviations, approaches a
+regular grid, then becomes distorted again. Row/column spacing and alignment
+statistics report the changes; the top statistics are smoothed over frames.
 
-First clone this repo and set up `camera_config.yaml`.
+![Simulated distorted grid becoming regular with row and column statistics](docs/demos/grid.gif)
 
-Check release to download the latest version: [Releases](https://github.com/tim4431/Basler_Beam_Profiler/releases)
+Grid statistics use neighbors within each row and column even when H is off.
+The current implementation groups approximately horizontal rows and vertical
+columns. It does **not** fit an ideal 2D lattice or generate a per-spot distortion
+map; a strongly rotated grid can also be misclassified.
 
-Put the `pylon_camera.exe` executable in the same directory as `camera_config.yaml`.
-Saved frames (`data/`) and the live status file (`pylon_camera.json`) are written
-next to the executable.
+### Change the ROI for faster acquisition and processing
 
-### Camera-window controls
+Scroll to zoom, or **Control/Shift-scroll** to change the hardware ROI aspect
+ratio. For a long horizontal row, preserve the width and reduce the height.
+This example reduces the captured image from **1200 × 900 to 1000 × 180** pixels,
+about **83% fewer pixels**, while retaining all eight spots.
 
-All letter shortcuts accept either case, with or without Caps Lock.
+![Camera ROI shrinking to a narrow strip while retaining every simulated spot](docs/demos/roi.gif)
+
+The cropped image still fills the viewer. Check the displayed **ROI dimensions**
+to see what the camera actually captures. The pixel reduction is not an equal
+percentage guarantee of FPS improvement: camera readout, exposure and fitting
+can each limit performance.
+
+Control- or Shift-**drag** instead draws a green fitting rectangle. That restricts
+the analysis, not camera readout; press **V** to clear it.
+
+### Browser/API feedback for optical optimization
+
+The camera measurements can supply feedback to an external
+**Gerchberg–Saxton (GS)** hologram optimization loop.
+The optical path is **SLM → lens → camera**; the optimizer reads the camera
+measurements and sends updated phase patterns to the SLM.
+
+![SLM, lens and camera with an external optimization feedback loop](docs/demos/optical-feedback.svg)
+
+Solid arrows show light propagation; dashed arrows show data or control.
+Press **W** to enable the HTTP interface. The profiler supplies images, fitted
+spots and region statistics; the optimization algorithm and SLM control must be
+provided externally. This schematic describes that integration, not a built-in
+SLM controller. See the [API reference](docs/web_api.md).
+
+Press P again to return to the previous multi-spot mode. F switches directly
+from the single-beam profiler to multi-spot fitting; another F disables it.
+
+## Camera-window controls
+
+Click the camera window before using shortcuts. All letter shortcuts accept
+both uppercase and lowercase. On Mac, Control means the Control key, not Command.
 
 | Key / gesture | Action |
 |---|---|
@@ -133,22 +150,21 @@ All letter shortcuts accept either case, with or without Caps Lock.
 | `S` | Save grayscale JPEG and raw `.npy` into `data/` |
 | `D` | Save with a filename/location dialog |
 | `T` | Switch to next connected camera |
-| `W` | Enable web view and white-region statistics; pressing again disables live statistics updates (the HTTP listener stays running) |
+| `W` | Enable web view and white-region statistics; pressing again hides rectangle statistics (the HTTP API stays live) |
 | `Y` | Toggle configured camera output, where supported |
 | Esc / window close | Exit |
 
-A green fitting rectangle does not reduce camera readout. Hardware ROI changes do.
-Spot detection uses a 1,048,576-pixel budget, preserving aspect ratio: a long,
-narrow ROI below this budget is searched at full resolution. Fitting always uses
-full-resolution pixels. This budget is currently a code constant, not a setting.
 
-## Spot fitting settings
+Exposure changes respect the camera's limits. Manual exposure adjustments do
+nothing while auto-exposure is active. GPIO outputs depend on the camera and its
+configuration; see the [camera catalog](docs/camera-catalog.md) and
+[FLIR wiring notes](docs/macos.md#hardware-sync).
 
-Press **O** to open these settings. These are factory defaults; saved values
-may differ. Numeric changes apply after **Enter or leaving the field**, and are
-saved to `fit_config.json` in the app's writable data directory. Checkbox changes
-apply immediately. These crop/estimator controls configure multi-spot fitting;
-the single-beam profiler has its own estimator.
+## Settings — press O
+
+These are factory defaults; your saved values may differ. Numeric changes apply
+after **Enter or leaving the field**. Checkboxes apply immediately. Settings are
+saved in `fit_config.json` in the app's data folder.
 
 | Setting | Default | Available range / purpose |
 |---|---:|---|
@@ -167,48 +183,145 @@ the single-beam profiler has its own estimator.
 | Use CUDA when available | On | NVIDIA acceleration; Apple Silicon uses CPU |
 | Minimum spots for CUDA | 400 | 1–100,000 |
 
-The window also provides **Restore defaults**, **Reload from file**, and **Close**.
-The same settings are available through `/api/fit_config`.
 
-Each control explains itself in the help pane. The defaults are measured
-optima rather than guesses. [`docs/fitting.md`](docs/fitting.md) walks through
-the fitting method step by step, and
-[`docs/fitting-calibration.md`](docs/fitting-calibration.md) records the sweeps
-behind each default - the test suite re-runs those measurements.
+The crop and estimator settings apply to multi-spot fitting. The single-beam
+profiler has its own estimator. Heatmap changes affect the display only; raw
+frames and measurements are unchanged.
 
-## Remote control / readout
+The window also provides **Restore defaults**, **Reload from file**, and
+**Close**. Hover over a setting for its explanation. See
+[fitting methods](docs/fitting.md) and [calibration benchmarks](docs/fitting-calibration.md)
+for the estimator details.
 
-Pressing `w` starts a small HTTP server on port 5000 that exposes the camera
-status, the current frame, and the pixel statistics of the white / green
-rectangles. Open <http://localhost:5000> for the endpoint list, or see
-[docs/web_api.md](docs/web_api.md) for the full reference.
+## Saved images and camera calibration
 
-The current state (camera, exposure, ROI, rectangles) is also mirrored to
-`pylon_camera.json` whenever it changes, so another process can read it without
-starting the server.
+**S** saves a grayscale JPEG and a matching raw `.npy` frame. The JPEG does not
+include the heatmap or fitting overlays. **D** lets you choose the destination.
 
-## Hardware sync
+| How the app runs | Data folder |
+|---|---|
+| Installed macOS app | `~/Library/Application Support/BeamProfiler` |
+| Installed Windows app | `%LOCALAPPDATA%\BeamProfiler` |
+| From source | Repository folder |
 
-The camera is armed with a software trigger, and drives two GPIO lines:
+Quick saves go into the `data/` subfolder. The data folder also contains
+`fit_config.json`, `camera_config.yaml`, and `pylon_camera.json` (a snapshot of
+camera settings and selected regions).
 
-- **Line2** - inverted `ExposureActive`, i.e. it mirrors the exposure window.
-- **Line3** - user-controlled output, toggled with `y`. While enabled it is
-  pulsed low for the duration of each acquisition.
+The [camera catalog](docs/camera-catalog.md) supplies sensor dimensions and pixel
+pitch for 175 FLIR and 414 Basler models. Each entry links to its manufacturer
+specification. Catalog inclusion describes sensor metadata; the camera still
+needs a compatible driver and acquisition format.
 
-Cameras that do not expose these lines (or the software trigger) log a warning at
-startup and keep running with that feature disabled.
+Installed apps load the bundled catalog together with saved model overrides.
+Pixel pitch converts pixels to distances **at the sensor plane**; external optical
+magnification is not automatically calibrated.
 
-Display colors can be changed with **O → Display → Heatmap colors**. The choice
-is saved locally; raw frames and fitted measurements are unchanged.
+## Performance
 
-### Local grid-distortion tools (grid-distortion branch)
+Spot detection uses a **1,048,576-pixel budget**, preserving aspect ratio. A long,
+narrow ROI below that budget is searched at full resolution; larger images are
+downsampled for detection. Individual spots are then fitted at full resolution.
+The detection budget is currently a code constant, not an O setting.
 
-Press **A** to toggle the native spot-spacing plot beside the camera window.
-The green rectangle must contain at least two spots. Pair 1 is the rightmost
-adjacent pair. Each frame produces angular spacings and a straight-line trend;
-there is no temporal averaging. Use **O → Grid distortion → Focal length (mm)**
-to change the default 150 mm focal length. Pixel pitch comes from the camera.
+The viewer is capped at **60 FPS**. Actual speed also depends on camera readout,
+exposure, USB transfer and analysis. Apple Silicon uses the CPU. Optional NVIDIA
+CUDA acceleration is available for multi-spot fitting; the Metal experiments in
+`benchmarks/` are not enabled in the app.
 
-The browser camera preview and angular plot remain optional: enable the web
-server with **W**, then visit its `/angular` page. These tools are separate from
-main's beam-profiler features.
+## Grid-distortion experiment
+
+On this branch, **A** opens a native spot-spacing plot alongside the camera
+window. Select at least two spots with the green rectangle. The plot measures
+adjacent horizontal spacings, starting at the rightmost pair, and shows a
+straight-line trend for each frame without temporal averaging.
+
+Set the effective focal length under **O → Grid distortion → Focal length (mm)**;
+the default is 150 mm. Pixel pitch comes from the connected camera. The plot's
+**Y min**, **Y max**, and **Apply** controls set its displayed range.
+
+The optional browser view combines a camera preview and angular plot at
+`http://localhost:5000/angular` after enabling the web interface with W. These
+experimental tools are separate from the main-branch release.
+
+## HTTP interface
+
+**W** starts the HTTP service on port 5000, bound to all network interfaces, and
+enables white-region statistics. Open `http://localhost:5000` on the same computer.
+Pressing W again hides rectangle statistics; the HTTP API continues serving
+current frame results. Closing the app stops the service.
+
+The interface exposes frames, spot measurements, selected-region statistics and
+fitting settings. See the [API reference](docs/web_api.md). On this branch, the
+home page shows the angular dashboard while the angular monitor is active.
+
+## Run from source
+
+Use **Python 3.12** for compatibility with the bundled/vendor camera bindings.
+Create and activate a virtual environment, then install the application dependencies:
+
+```sh
+python -m venv .venv
+# macOS/Linux: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m beam_profiler --sim
+```
+
+For Basler, additionally install `requirements-basler.txt`. For FLIR, install the
+matching Spinnaker runtime and vendor `spinnaker_python` wheel; see the platform
+setup guides above. The similarly named `pyspin` package on PyPI is unrelated.
+
+```sh
+python -m beam_profiler --camera flir
+python -m beam_profiler --camera basler
+python -m beam_profiler --sim --sim-grid 8x8 --sim-jitter 0
+python -m beam_profiler --help
+```
+
+On macOS, `./run.sh` uses the repository's `.venv` when available and sets paths
+for a local `.vendor/spinnaker` runtime. `Launch FLIR.command` and
+`Launch Simulator.command` call that launcher. `pylon_camera.py` is the legacy
+entry point used by packaging; the application lives in `beam_profiler/`.
+
+## Development
+
+See [Code structure](docs/architecture.md) for the analysis pipeline, shared
+frame results, thread ownership and where to make changes.
+
+| Location | Responsibility |
+|---|---|
+| `beam_profiler/cameras/` | Basler, FLIR and simulated camera backends |
+| `beam_profiler/processing/` | Spot detection, fitting, grid grouping and statistics |
+| `beam_profiler/ui/` | Camera viewer, overlays, settings and Mac event handling |
+| `beam_profiler/fitconfig.py` | Editable settings, validation and persistence |
+| `beam_profiler/config.py` | Data paths and camera catalog loading |
+| `beam_profiler/roi.py` | Hardware ROI geometry and display-coordinate conversion |
+| `beam_profiler/processing/pipeline.py` | Shared frame analysis and results |
+| `beam_profiler/session.py` | Frame snapshots and queued browser controls |
+| `beam_profiler/server.py` | HTTP interface |
+| `beam_profiler/synthetic.py` | Synthetic beams for simulation and tests |
+| `tests/` | Regression tests using synthetic data and camera mocks |
+| `benchmarks/` | Performance experiments, including optional Metal prototypes |
+| `tools/`, `packaging/`, `.github/workflows/` | Build, driver bundling and release tooling |
+
+Run the tests in the source environment:
+
+```sh
+python -m pip install pytest
+python -m pytest -q
+```
+
+Native window tests require a working GUI session; CUDA tests require a compatible
+NVIDIA setup. Generate fixed synthetic frames with `python tools/make_test_images.py`.
+Recreate the README animations with `python -m tools.make_readme_demos`
+(requires FFmpeg). The renderer does not open a camera or change saved settings.
+
+Standalone builds use the platform-specific PyInstaller specifications and
+[GitHub Actions](.github/workflows/build.yml). The [Windows build guide](docs/windows.md)
+describes the offline installer. Pushing to main triggers tests and a release
+build; grid-distortion is maintained separately.
+
+Based on [Tim's original Basler Beam Profiler](https://github.com/tim4431/Basler_Beam_Profiler).
+See [LICENSE](LICENSE) for the project license; bundled camera runtimes retain
+their vendor licenses.

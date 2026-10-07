@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 from beam_profiler.angular import response_from_centers, AngularMonitor
 from beam_profiler.server import create_app
-from types import SimpleNamespace
+from beam_profiler.session import LiveSession, SessionSnapshot
+from beam_profiler.processing.pipeline import FrameProcessor, AnalysisOptions
 
 
 def test_index_spacing_accepts_any_count():
@@ -27,19 +28,24 @@ def test_invalid_centers_and_incomplete_roi():
 
 def test_api_and_page():
     monitor = AngularMonitor()
-    client = create_app(SimpleNamespace(angular_monitor=monitor)).test_client()
+    session = LiveSession()
+    session.publish(SessionSnapshot(angular=monitor.latest))
+    client = create_app(session).test_client()
     assert client.get('/angular').status_code == 200
     assert client.get('/api/angular').json['valid'] is False
-    client = create_app(SimpleNamespace()).test_client()
+    client = create_app(LiveSession()).test_client()
     assert client.get('/api/angular').status_code == 409
 
 
 def test_combined_page_and_camera_preview():
     import cv2
     frame = np.full((20,40),32768,dtype=np.uint16)
-    viewer = SimpleNamespace(angular_monitor=AngularMonitor(),
-                             preview_snapshot=(frame,(40,20,100,200),(105,205,130,210)))
-    client = create_app(viewer).test_client()
+    session = LiveSession()
+    result = FrameProcessor().process(frame, roi=(40,20,100,200), pixel_size=3.45e-6,
+                                      full_scale=65535,
+                                      options=AnalysisOptions(fit_rect=(105,205,130,210)))
+    session.publish(SessionSnapshot(result=result, angular=AngularMonitor().latest))
+    client = create_app(session).test_client()
     page = client.get('/').text
     assert 'id="camera"' in page and 'id="ymin"' in page and 'id="ymax"' in page
     response = client.get('/api/preview')

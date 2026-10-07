@@ -7,6 +7,21 @@ Spinnaker DLLs and GenTL transport, and the signed vendor installer for runtime
 prerequisites and USB camera drivers. Windows administrator approval is required
 when installing drivers. Users should not need separate dependency downloads.
 
+### Preserve existing camera software
+
+Setup checks both 32-bit and 64-bit Windows uninstall registries for Spinnaker,
+FLIR USB drivers, and Basler/pylon, plus common vendor installation folders.
+If found, **Install bundled FLIR USB drivers** is unchecked: installing Beam
+Profiler leaves that software alone. Silent installs use the same default.
+On a fresh machine the option is checked to provide offline FLIR USB support.
+The application always includes its own runtime libraries, regardless of this
+option. No Basler installer or uninstaller is run.
+
+Only select the driver option on an existing setup if you intend to run the
+vendor installer: it can modify installed Spinnaker components. If only Basler
+software is installed, using a FLIR camera may still require its USB driver.
+Uninstalling Beam Profiler does not uninstall either vendor's software.
+
 The older `pylon_camera.exe` releases include Basler support but lack Windows FLIR
 runtime/binding packaging.
 
