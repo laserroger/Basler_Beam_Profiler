@@ -77,14 +77,16 @@ def test_invalid_controls_and_no_frame():
 
 
 def test_real_viewer_loop_publishes_the_result_it_draws(monkeypatch, tmp_path):
-    from beam_profiler.ui import viewer, macos
+    from beam_profiler.ui import viewer
     from beam_profiler.cameras.simulated import SimulatedCamera
     monkeypatch.setattr(viewer, 'DATA_DIR', str(tmp_path))
     monkeypatch.setattr(viewer.gpu, 'warm_up', lambda: None)
     monkeypatch.setattr(viewer.settings, 'prepare_gui', lambda: None)
     monkeypatch.setattr(viewer.settings, 'pump_events', lambda: None)
-    monkeypatch.setattr(macos, 'attach_close_button', lambda *args: None)
-    monkeypatch.setattr(macos, 'attach_key_monitor', lambda *args: None)
+    if viewer.sys.platform == 'darwin':
+        from beam_profiler.ui import macos
+        monkeypatch.setattr(macos, 'attach_close_button', lambda *args: None)
+        monkeypatch.setattr(macos, 'attach_key_monitor', lambda *args: None)
     for name in ('namedWindow', 'resizeWindow', 'setMouseCallback', 'imshow'):
         monkeypatch.setattr(viewer.cv2, name, lambda *args: None)
     monkeypatch.setattr(viewer.cv2, 'getWindowProperty', lambda *args: 1)
