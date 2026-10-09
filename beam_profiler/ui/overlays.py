@@ -132,7 +132,8 @@ def draw_grid_stats(img, bar_y: int, rows, columns, grid_stats: dict, pixel_to_u
         )
 
 
-def draw_spots(img, spots, view: ViewTransform, pixel_size: float, min_label_radius: int = 15, saturated=None):
+def draw_spots(img, spots, view: ViewTransform, pixel_size: float, min_label_radius: int = 15, saturated=None,
+               show_centers=False):
     """Draw fitted ellipses and labels in display space, so line widths and
     text stay the same size at every zoom level.  Labels are skipped for spots
     too small on screen to keep dense arrays readable."""
@@ -163,6 +164,8 @@ def draw_spots(img, spots, view: ViewTransform, pixel_size: float, min_label_rad
             float(angle[i]), 0, 360, (0, 0, 255) if saturated[i] else BGR_GREEN,
             4 if saturated[i] else 2,
         )
+        if show_centers:
+            cv2.drawMarker(img, centre, WHITE, cv2.MARKER_CROSS, 7, 1, cv2.LINE_AA)
         if not labelled[i]:
             continue
         cv2.line(img, centre, (int(major[0][i]), int(major[1][i])), BGR_RED, 2)
@@ -200,15 +203,78 @@ def _dashed_line(img, p1, p2, color, dash=8, gap=4):
         pos = end + gap
 
 
-def draw_row_col(img, view: ViewTransform, rows, columns):
+def draw_grid_shear(img, shear: dict, y: int) -> int:
+    """H's readout is independent of G; zero signed shear is the target."""
+    if not shear["valid"]:
+        lines = [f"Grid shear: unavailable - {shear['reason']}"]
+    else:
+        lines = [
+            f"Grid shear: {shear['shear_deg']:+.3f} deg (target 0)   "
+            f"Row/col angle: {shear['angle_deg']:.3f} deg",
+            f"Rotation: {shear['rotation_deg']:+.3f} deg   "
+            f"Orthogonal RMS: {shear['orthogonal_rms_px']:.3f} px   "
+            f"{shear['num_rows']} rows x {shear['num_columns']} cols",
+        ]
+    for line in lines:
+        y += LINE_H
+        text(img, line, (10, y), GREEN, scale=.6)
+    return y + 6
+
+
+def draw_displacement(img, view: ViewTransform, displacement: dict):
+    """Reference grid plus measured residual vectors exaggerated exactly 1000x."""
+    if not displacement['valid']:
+        return
+    reference = displacement['reference']
+    exaggerated = reference + 1000. * displacement['residual']
+    start = np.column_stack(view.roi_to_display_many(reference[:, 0], reference[:, 1]))
+    end = np.column_stack(view.roi_to_display_many(exaggerated[:, 0], exaggerated[:, 1]))
+    # Bound offscreen drawing coordinates. Normal in-frame vectors are exact.
+    start = np.clip(start, -1000000, 1000000).astype(np.int32)
+    end = np.clip(end, -1000000, 1000000).astype(np.int32)
+    for key, axis in [('rows', 0), ('columns', 1)]:
+        ids = displacement[key]
+        for label in np.unique(ids):
+            indices = np.flatnonzero(ids == label)
+            indices = indices[np.argsort(reference[indices, axis])]
+            if len(indices) >= 2:
+                cv2.polylines(img, [end[indices]], False, (0, 165, 255), 1, cv2.LINE_AA)
+    for a, b in zip(start, end):
+        cv2.arrowedLine(img, tuple(a), tuple(b), (255, 255, 0), 1, cv2.LINE_AA, tipLength=.2)
+        cv2.circle(img, tuple(b), 3, (0, 165, 255), 1, cv2.LINE_AA)
+
+
+def draw_displacement_stats(img, displacement: dict, y: int) -> int:
+    if displacement['valid']:
+        lines = [f"E: displacement x1000 | 5-frame average | RMS: {displacement['rms_px']:.3f} px (actual)",
+                 'Rotation/shear removed | cyan: vectors | orange: exaggerated | white +: beam centers']
+    else:
+        lines = [f"E: displacement unavailable - {displacement['reason']}"]
+    for line in lines:
+        y += LINE_H
+        text(img, line, (10, y), (255, 255, 0), scale=.55)
+    return y + 6
+
+
+def _grid_line_endpoints(group, direction, axis):
+    xy = np.column_stack((group.x, group.y))
+    center = xy.mean(axis=0)
+    if direction is None:
+        direction = np.eye(2)[axis]
+    direction = np.asarray(direction)
+    t = (xy - center) @ direction
+    return center + t.min() * direction, center + t.max() * direction
+
+
+def draw_row_col(img, view: ViewTransform, rows, columns, shear=None):
     """Hue-coded row lines (solid, circles) and column lines (dashed, squares)."""
     for i, row in enumerate(rows):
         if len(row) < 2:
             continue
         color = _hue_color(i, saturation=255)
-        mean_y = float(np.mean(row.y))
-        p1 = view.roi_to_display(float(row.x.min()), mean_y)
-        p2 = view.roi_to_display(float(row.x.max()), mean_y)
+        direction = shear["row_direction"] if shear and shear["valid"] else None
+        a, b = _grid_line_endpoints(row, direction, 0)
+        p1, p2 = view.roi_to_display(*a), view.roi_to_display(*b)
         cv2.line(img, p1, p2, color, 2, cv2.LINE_AA)
         for px, py in zip(*view.roi_to_display_many(row.x, row.y)):
             cv2.circle(img, (int(px), int(py)), 5, color, 2)
@@ -217,9 +283,9 @@ def draw_row_col(img, view: ViewTransform, rows, columns):
         if len(col) < 2:
             continue
         color = _hue_color(i, saturation=180)
-        mean_x = float(np.mean(col.x))
-        p1 = view.roi_to_display(mean_x, float(col.y.min()))
-        p2 = view.roi_to_display(mean_x, float(col.y.max()))
+        direction = shear["column_direction"] if shear and shear["valid"] else None
+        a, b = _grid_line_endpoints(col, direction, 1)
+        p1, p2 = view.roi_to_display(*a), view.roi_to_display(*b)
         _dashed_line(img, p1, p2, color)
         for px, py in zip(*view.roi_to_display_many(col.x, col.y)):
             cv2.drawMarker(img, (int(px), int(py)), color, cv2.MARKER_SQUARE, 10, 2)

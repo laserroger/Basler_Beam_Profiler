@@ -351,6 +351,7 @@ class FlirCamera(Camera):
                 self.camera.EndAcquisition()
                 self._running = False
         finally:
+            self._running = False
             try:
                 if self._initialized:
                     self.camera.DeInit()

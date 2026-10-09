@@ -2,6 +2,7 @@
 import numpy as np
 from .spots import SpotArray
 from .grid import classify_grid
+from .shear import fit_grid_shear, unavailable
 
 
 class SpotStatistics:
@@ -14,11 +15,15 @@ class SpotStatistics:
     def reset(self):
         self.stats_dx = self.stats_dy = self.stats_sigma = np.array([0.0])
         self.rows, self.columns, self.grid_stats = [], [], {}
+        self.grid_shear = unavailable("Need at least two classified rows and columns")
 
-    def update(self, spots: SpotArray):
+    def update(self, spots: SpotArray, saturated=None):
         grid_mode = False
         if len(spots) > 1:
             self.rows, self.columns, self.grid_stats = classify_grid(spots, eps=20)
+            self.grid_shear = (unavailable("Saturated spots: reduce exposure")
+                               if saturated is not None and np.any(saturated)
+                               else fit_grid_shear(self.rows, self.columns))
             # H controls overlays, not the geometry used for measurements.
             grid_mode = len(self.rows) >= 2 and len(self.columns) >= 2
             if grid_mode:
@@ -51,6 +56,7 @@ class SpotStatistics:
     def summary(self, pixel_size):
         um = pixel_size * 1e6
         stats = {
+            "grid_shear": self.grid_shear,
             "basic_stats": {
                 "dx_std": float(np.std(self.stats_dx)),
                 "dy_std": float(np.std(self.stats_dy)),
@@ -76,4 +82,3 @@ class SpotStatistics:
                 "num_columns": len(self.columns),
             }
         return stats
-

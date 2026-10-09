@@ -191,3 +191,17 @@ def test_simulation_does_not_load_sdk(monkeypatch):
     monkeypatch.setitem(sys.modules, 'PySpin', None)
     camera = open_cameras(simulate=True)[0]
     assert camera.grab_image().dtype == np.uint16
+
+
+def test_disconnect_cleanup_releases_session_even_if_sdk_stop_fails(camera, monkeypatch):
+    c, raw = camera
+    def fail(): raise RuntimeError('USB camera removed')
+    monkeypatch.setattr(raw, 'EndAcquisition', fail)
+    with pytest.raises(RuntimeError, match='USB camera removed'):
+        c.close()
+    assert c.camera is None
+    assert c._nodes is None
+    assert not c._running
+    assert not c._initialized
+    assert c._session is None
+    c.close()  # Repeated cleanup after unplug is harmless.

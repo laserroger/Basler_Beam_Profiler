@@ -179,5 +179,8 @@ class BaslerCamera(Camera):
         return img
 
     def close(self):
-        self.camera.StopGrabbing()
-        self.camera.Close()
+        try:
+            self.camera.StopGrabbing()
+        finally:
+            # StopGrabbing can fail after USB removal; still release the device.
+            self.camera.Close()

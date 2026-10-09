@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 
 
@@ -75,16 +76,47 @@ def main(argv=None):
     except RuntimeError as exc:
         parser.exit(1, f"{exc}\n")
 
-    try:
-        from .ui import Viewer
+    from .ui import Viewer
 
-        Viewer(cameras).run(max_frames=args.frames)
+    viewer = None
+    try:
+        viewer = Viewer(cameras)
+        viewer.run(max_frames=args.frames)
     finally:
-        for camera in cameras:
-            try:
-                camera.close()
-            except Exception:
-                logging.exception("Error closing camera %s", camera.serial)
+        close_cameras(cameras, failed=viewer is not None and viewer.camera_failed)
+
+
+def exit_failed_camera_process():
+    """Exit the CLI/app without re-entering a broken vendor SDK destructor.
+
+    Observed on FLIR unplug: CameraPtr destruction waits forever in Spinnaker's
+    EventProcessor thread join, even after EndAcquisition raised -1014. Python
+    sys.exit/exception unwinding would run that destructor again. This is only
+    the fatal camera path, after the viewer has attempted GUI cleanup. The OS
+    reclaims process resources; normal exits still explicitly close cameras.
+    """
+    logging.error('Camera connection failed; terminating the camera process.')
+    try:
+        for stream in (sys.stdout, sys.stderr):
+            if stream is not None:
+                stream.flush()
+    finally:
+        os._exit(1)
+
+
+def close_cameras(cameras, *, failed=False):
+    if failed:
+        exit_failed_camera_process()
+        return
+    for camera in cameras:
+        try:
+            camera.close()
+        except Exception:
+            # Exit inside this handler, before disposing of the traceback's
+            # SWIG CameraPtr references can invoke the stuck C++ destructor.
+            logging.exception('Camera shutdown failed')
+            exit_failed_camera_process()
+            return
 
 
 if __name__ == "__main__":

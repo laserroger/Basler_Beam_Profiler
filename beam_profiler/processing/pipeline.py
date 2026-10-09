@@ -80,12 +80,13 @@ class FrameProcessor:
             spots = SpotArray.empty()
         # update assigns new arrays; copy the state so earlier results never
         # acquire the next frame's smoothing values or geometry.
+        saturated = saturated_spots(frame, spots, full_scale)
         statistics = copy(self.statistics)
-        statistics.update(spots)
+        statistics.update(spots, saturated=saturated)
         self.statistics = statistics
         return FrameResult(
             frame, roi, pixel_size, options, spots, statistics,
-            saturated_spots(frame, spots, full_scale),
+            saturated,
             region_stats(frame, roi, options.rect, pixel_size) if options.rect_stats else None,
             message, timestamp,
         )

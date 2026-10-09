@@ -6,11 +6,12 @@ Double-click **Launch FLIR.command** in the repository folder. It selects FLIR
 explicitly: a missing/disconnected camera produces an error, never simulated data.
 Double-click **Launch Simulator.command** for synthetic beam arrays.
 
-The installed environment is native Apple Silicon Python 3.12.14 with Spinnaker
-4.4.0.246, taken from the SDK you downloaded. The Python environment (`.venv`),
-Python runtime (`.python`), and SDK libraries (`.vendor/spinnaker`) are local to
-this folder. Homebrew supplies libusb, libomp and FFmpeg 6 dependencies. Keep the
-folder in its current location: virtual environments contain absolute paths.
+This Mac uses the shared native Apple Silicon Python 3.12 environment at
+`~/envs/distortion`, with Spinnaker 4.4.0.246 from the downloaded SDK. There is
+no project-local Python environment or private Python runtime. SDK libraries
+remain in `.vendor/spinnaker`; a `.pth` file in the shared environment makes
+that folder's Python binding available. Homebrew supplies libusb, libomp and
+FFmpeg 6 dependencies. If the SDK folder moves, update that `.pth` path.
 The full SDK installer is excluded. The matching runtime libraries are vendored
 for the standalone Mac build and retain their own licenses.
 

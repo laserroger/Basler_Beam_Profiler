@@ -25,6 +25,20 @@ not access native windows or camera drivers from the HTTP thread.
 their sizes for optimization. W can hide rectangle statistics without stopping
 HTTP updates.
 
+`/api/spots` includes `stats.grid_shear`, calculated from that frame even when
+the H overlay is hidden. When `valid` is true it contains `shear_deg` (signed
+`90 - angle_deg`, zero is the target), `angle_deg` (between rightward row and
+downward column directions), `rotation_deg` (best-fit orthogonal grid rotation,
+clockwise in image coordinates), `orthogonal_rms_px`, `line_rms_px` (remaining
+perpendicular line residual with shear allowed), `spot_count`, `num_rows`,
+`num_columns`, and unit `row_direction`/`column_direction` vectors. Both fits
+allow independent line offsets, so nonuniform spacing is not counted as shear.
+Saturated, degenerate, or insufficiently classified grids return `valid: false`
+and a `reason` instead of numerical fit values. The existing classifier expects
+approximately horizontal rows and vertical columns; large rotations may prevent
+correct grouping. H toggles the desktop grid and shear display together; G is
+not required for the shear readout.
+
 ## Read
 
 | Endpoint | Description |

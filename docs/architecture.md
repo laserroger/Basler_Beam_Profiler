@@ -78,6 +78,17 @@ frame; wait for a new result timestamp before interpreting updated measurements.
 The settings PUT response describes the accepted configuration; GET describes the
 configuration currently applied.
 
+An acquisition error or missing frame clears the published result and ends the
+viewer loop. After GUI cleanup, the application terminates the failed camera
+process directly instead of entering vendor cleanup or Python object destruction.
+A sampled FLIR unplug hang occurred in the Spinnaker CameraPtr destructor's
+EventProcessor thread join, after EndAcquisition reported a disconnected camera.
+Normal exits still close all cameras normally; an exception during camera
+shutdown takes the same fatal process-exit path before releasing its traceback.
+The fatal path returns exit status 1. It is confined to the application entry
+point, not the reusable processing pipeline or viewer. It cannot interrupt an
+SDK acquisition call that never returns.
+
 The HTTP listener remains live after W hides rectangle statistics. Published
 measurements continue updating, avoiding a mixture of fresh spots and stale
 spacing statistics. JPEG encoding and JSON serialization happen when requested,

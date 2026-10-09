@@ -26,6 +26,7 @@ from ..config import (
 from .. import fitconfig
 from ..processing import SpotArray, gpu
 from ..processing.pipeline import FrameProcessor, AnalysisOptions
+from ..processing.displacement import grid_displacement, DisplacementAverage
 from ..session import LiveSession, SessionSnapshot
 from ..roi import ROIModel, ViewTransform
 from ..status import write_status, viewer_status
@@ -45,6 +46,7 @@ KEY_FACTORS = {
 class Viewer:
     def __init__(self, cameras: list):
         self._quit_requested = False
+        self.camera_failed = False
         self._native_close_handler = None
         self._native_key_monitor = None
         self._pending_keys = deque()
@@ -61,6 +63,8 @@ class Viewer:
         self.profiler_message = ''
         self.show_stats = False
         self.row_col_fitting = False
+        self.show_displacement = False
+        self._displacement_average = DisplacementAverage()
         self.exposure_us = 200
         self.last_mouse = (0, 0)  # sensor coords
         self._mouse_display = None
@@ -125,12 +129,17 @@ class Viewer:
         try:
             self._run_loop(max_frames=max_frames)
         finally:
-            if self._native_key_monitor is not None:
-                from .macos import remove_key_monitor
-                remove_key_monitor(self._native_key_monitor)
-                self._native_key_monitor = None
-            cv2.destroyAllWindows()
-            settings.destroy_settings()
+            # Cleanup every GUI resource even if one toolkit reports an error.
+            try:
+                if self._native_key_monitor is not None:
+                    from .macos import remove_key_monitor
+                    remove_key_monitor(self._native_key_monitor)
+                    self._native_key_monitor = None
+            finally:
+                try:
+                    cv2.destroyAllWindows()
+                finally:
+                    settings.destroy_settings()
 
     def _run_loop(self, max_frames=None):
         frame_count = 0
@@ -143,9 +152,11 @@ class Viewer:
             self._apply_scroll()
             t0 = time.time()
             grab_started = time.perf_counter()
-            frame = self.camera.grab_image()
+            frame = self._grab_frame()
             acquisition_ms = (time.perf_counter() - grab_started) * 1000
             if frame is None:
+                if self._quit_requested:
+                    break
                 if not self._poll_keys(10):
                     break
                 continue
@@ -178,6 +189,27 @@ class Viewer:
             if max_frames is not None and frame_count >= max_frames:
                 break
             self._sleep_for_fps(time.time() - t0)
+
+    def _camera_unavailable(self, message):
+        self.camera_failed = True
+        self.current_frame = None
+        self.analysis = None
+        self.latest_spots = SpotArray.empty()
+        status = dict(self.session.read().status)
+        status.update(camera_available=False, error=message)
+        self.session.publish(SessionSnapshot(status=status))
+        logging.error("%s; closing Beam Profiler", message)
+        self._quit_requested = True
+
+    def _grab_frame(self):
+        try:
+            frame = self.camera.grab_image()
+        except Exception as exc:
+            self._camera_unavailable(f'Camera acquisition failed: {exc}')
+            return None
+        if frame is None:
+            self._camera_unavailable('Camera stopped delivering frames')
+        return frame
 
     def _analyze_frame(self, frame):
         self.analysis = self.processor.process(
@@ -223,12 +255,37 @@ class Viewer:
             value=PAD_COLOR,
         )
         saturated = self.analysis.saturated
-        if len(spots) and (self.profiler_enabled or not self.row_col_fitting):
-            overlays.draw_spots(disp, spots, view, self.camera.pixel_size, saturated=saturated)
+        self._draw_rectangles(disp, view)
+        if self.row_col_fitting and self.do_fitting and not self.profiler_enabled:
+            overlays.draw_row_col(disp, view, self.statistics.rows, self.statistics.columns,
+                                  self.statistics.grid_shear)
+        displacement = None
+        if self.show_displacement and not self.profiler_enabled:
+            displacement = grid_displacement(self.statistics.rows, self.statistics.columns,
+                                              self.statistics.grid_shear)
+            if not hasattr(self, '_displacement_average'):
+                self._displacement_average = DisplacementAverage()
+            context = (tuple(self.camera.ROI),
+                       tuple(self.fit_rect_sensor) if self.fit_rect_sensor is not None else None,
+                       getattr(self.camera, 'serial', None),
+                       getattr(self.camera, 'ExposureTime', None), fitconfig.active())
+            displacement = self._displacement_average.update(
+                displacement, context, getattr(self.analysis, 'timestamp', None))
+            overlays.draw_displacement(disp, view, displacement)
+        elif hasattr(self, '_displacement_average'):
+            self._displacement_average.reset()
+        # Draw the actual beam fits above grid/displacement lines, in every mode.
+        if len(spots):
+            overlays.draw_spots(disp, spots, view, self.camera.pixel_size, saturated=saturated,
+                                show_centers=self.row_col_fitting or self.show_displacement)
 
         y = overlays.draw_hud(disp, self._hud_lines())
         if self.show_rect_stats:
             y = overlays.draw_rect_stats(disp, self.current_rect_stats, y)
+        if self.row_col_fitting and not self.profiler_enabled:
+            y = overlays.draw_grid_shear(disp, self.statistics.grid_shear, y)
+        if displacement is not None:
+            y = overlays.draw_displacement_stats(disp, displacement, y)
         if self.show_stats and not self.profiler_enabled:
             bar_y = overlays.draw_spot_stats(
                 disp,
@@ -247,13 +304,6 @@ class Viewer:
                     disp, bar_y, self.statistics.rows, self.statistics.columns, self.statistics.grid_stats,
                     self.camera.pixel_size * 1e6,
                 )
-        self._draw_rectangles(disp, view)
-        if self.row_col_fitting and self.do_fitting and not self.profiler_enabled:
-            overlays.draw_row_col(disp, view, self.statistics.rows, self.statistics.columns)
-        # Keep warnings visible even when row/column overlays replace ellipses.
-        if self.row_col_fitting and np.any(saturated):
-            overlays.draw_spots(disp, spots[saturated], view, self.camera.pixel_size,
-                                saturated=np.ones(np.count_nonzero(saturated), dtype=bool))
         if np.any(saturated):
             overlays.text(disp, f"SATURATED: {np.count_nonzero(saturated)} beam(s) - reduce exposure; fit unreliable",
                           (10, WINDOW_SIZE - 18), (0, 0, 255), scale=0.65)
@@ -470,6 +520,10 @@ class Viewer:
             self.show_stats = not self.show_stats
         elif key == ord("h"):
             self.row_col_fitting = not self.row_col_fitting
+        elif key == ord("e"):
+            self.show_displacement = not self.show_displacement
+            if hasattr(self, '_displacement_average'):
+                self._displacement_average.reset()
         elif key == ord("c"):
             self.rect_sensor = None
         elif key == ord("v"):

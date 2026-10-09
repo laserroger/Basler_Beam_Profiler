@@ -86,9 +86,25 @@ statistics report the changes; the top statistics are smoothed over frames.
 ![Simulated distorted grid becoming regular with row and column statistics](docs/demos/grid.gif)
 
 Grid statistics use neighbors within each row and column even when H is off.
+**H also displays grid shear**, independently of G: signed shear is
+`90 degrees - row/column angle`, so **0 is the target**. Shared row/column
+directions are fitted with independent offsets; unequal spacing is allowed.
+The readout includes the best-fit orthogonal grid's rotation (clockwise in
+image coordinates) and RMS deviation in pixels. Grid lines follow the fitted
+directions. Saturated or unclassifiable grids show an unavailable message.
+The same per-frame fit is returned in `/api/spots` under `stats.grid_shear`.
+**E toggles a 1,000x residual-displacement overlay**, independently of H and G.
+Rotation and the remaining affine field (including shear) are removed after
+fitting freely spaced rows/columns. Cyan arrows connect reference positions to
+orange exaggerated positions/grid lines; the RMS label is in actual pixels.
+Fitted beam ellipses remain visible with H/E, with white crosses at their actual
+centers. E waits for five frames, then uses a rolling mean of the latest five
+displacement fields, matched by row/column identity. Toggling E, changing ROI,
+fitting region, exposure, camera or fit settings, losing a grid cell, or receiving
+an invalid/saturated fit clears the average. Actual beam markers remain live.
 The current implementation groups approximately horizontal rows and vertical
-columns. It does **not** fit an ideal 2D lattice or generate a per-spot distortion
-map; a strongly rotated grid can also be misclassified.
+columns; a strongly rotated grid can still be misclassified. It does not
+generate a per-spot distortion map.
 
 ### Change the ROI for faster acquisition and processing
 
@@ -135,7 +151,8 @@ both uppercase and lowercase. On Mac, Control means the Control key, not Command
 | `F` | Toggle multi-spot fitting; switches out of single-beam mode |
 | `P` | Toggle single-beam profiler |
 | `G` | Show/hide statistics |
-| `H` | Show/hide row/column grid display; grid statistics are calculated automatically |
+| `H` | Show/hide row/column grid and shear readout (0° is the target); measurements are calculated automatically |
+| `E` | Show/hide 1,000x residual displacement after rotation/shear removal; requires F |
 | `A` | Open/close angular spot-spacing plot (grid-distortion branch; main uses this key for auto-exposure) |
 | `O` | Open settings |
 | ↑ / ↓ | Exposure ×10 / ÷10 |
@@ -279,8 +296,9 @@ python -m beam_profiler --sim --sim-grid 8x8 --sim-jitter 0
 python -m beam_profiler --help
 ```
 
-On macOS, `./run.sh` uses the repository's `.venv` when available and sets paths
-for a local `.vendor/spinnaker` runtime. `Launch FLIR.command` and
+On macOS, `./run.sh` uses `$PYTHON`, an activated environment, or the shared
+`~/envs/distortion` environment (in that order), falling back to `python3`. It
+also sets paths for the local `.vendor/spinnaker` runtime. `Launch FLIR.command` and
 `Launch Simulator.command` call that launcher. `pylon_camera.py` is the legacy
 entry point used by packaging; the application lives in `beam_profiler/`.
 
