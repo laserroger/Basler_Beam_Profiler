@@ -26,7 +26,7 @@ from ..config import (
 from .. import fitconfig
 from ..processing import SpotArray, gpu
 from ..processing.pipeline import FrameProcessor, AnalysisOptions
-from ..processing.displacement import grid_displacement, DisplacementAverage
+from ..processing.displacement import ImageGridAverage
 from ..session import LiveSession, SessionSnapshot
 from ..roi import ROIModel, ViewTransform
 from ..status import write_status, viewer_status
@@ -64,7 +64,7 @@ class Viewer:
         self.show_stats = False
         self.row_col_fitting = False
         self.show_displacement = False
-        self._displacement_average = DisplacementAverage()
+        self._displacement_average = ImageGridAverage()
         self.exposure_us = 200
         self.last_mouse = (0, 0)  # sensor coords
         self._mouse_display = None
@@ -226,6 +226,14 @@ class Viewer:
         self.statistics = self.analysis.statistics
         self.current_rect_stats = self.analysis.rect_stats
         self.profiler_message = self.analysis.profiler_message
+        if self.show_displacement and not self.profiler_enabled:
+            self._displacement_average.update(
+                frame, roi=self.camera.ROI, camera=self.camera.serial,
+                exposure=self.camera.ExposureTime, gain=self.camera.Gain,
+                full_scale=self.camera.saturation, config=fitconfig.active(),
+                fit_rect=self.fit_rect_sensor, frame_id=self.analysis.timestamp)
+        else:
+            self._displacement_average.reset()
 
     def _apply_web_commands(self):
         for name, value in self.session.take_commands():
@@ -261,19 +269,17 @@ class Viewer:
                                   self.statistics.grid_shear)
         displacement = None
         if self.show_displacement and not self.profiler_enabled:
-            displacement = grid_displacement(self.statistics.rows, self.statistics.columns,
-                                              self.statistics.grid_shear)
             if not hasattr(self, '_displacement_average'):
-                self._displacement_average = DisplacementAverage()
-            context = (tuple(self.camera.ROI),
-                       tuple(self.fit_rect_sensor) if self.fit_rect_sensor is not None else None,
-                       getattr(self.camera, 'serial', None),
-                       getattr(self.camera, 'ExposureTime', None), fitconfig.active())
-            displacement = self._displacement_average.update(
-                displacement, context, getattr(self.analysis, 'timestamp', None))
+                self._displacement_average = ImageGridAverage()
+            displacement = self._displacement_average.latest
             overlays.draw_displacement(disp, view, displacement)
         elif hasattr(self, '_displacement_average'):
             self._displacement_average.reset()
+        if self.show_displacement and not self.profiler_enabled and not self.do_fitting:
+            averaged_spots = self._displacement_average.spots
+            if averaged_spots is not None:
+                spots = averaged_spots
+                saturated = np.zeros(len(spots), dtype=bool)
         # Draw the actual beam fits above grid/displacement lines, in every mode.
         if len(spots):
             overlays.draw_spots(disp, spots, view, self.camera.pixel_size, saturated=saturated,

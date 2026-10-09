@@ -81,3 +81,86 @@ def grid_displacement(rows, columns, shear):
     return {'valid': True, 'reference': reference + linear, 'residual': residual,
             'rows': rid, 'columns': cid,
             'rms_px': float(np.sqrt(np.mean(np.sum(residual**2, axis=1))))}
+
+
+class ImageGridAverage:
+    """Non-overlapping 20-image batches: average pixels, then fit once."""
+    def __init__(self, frames=20):
+        self.frames = frames
+        self.reset()
+
+    def reset(self):
+        self.total = None
+        self.count = 0
+        self.context = None
+        self.frame_id = None
+        self.spots = None
+        self.latest = {'valid': False, 'reason': f'Collecting 0/{self.frames} images'}
+
+    def update(self, frame, *, roi, camera, exposure, gain, full_scale, config,
+               fit_rect=None, frame_id=None):
+        context = (tuple(roi), camera, exposure, gain, full_scale, config,
+                   tuple(fit_rect) if fit_rect is not None else None, frame.shape)
+        if context != self.context:
+            self.reset()
+            self.context = context
+        if frame_id is not None and frame_id == self.frame_id:
+            return self.latest
+        self.frame_id = frame_id
+        if self.total is None:
+            self.total = np.array(frame, dtype=np.float64, copy=True)
+        else:
+            self.total += frame
+        self.count += 1
+        if self.count < self.frames:
+            if not self.latest['valid']:
+                self.latest = {'valid': False,
+                               'reason': f'Collecting {self.count}/{self.frames} images'}
+            return self.latest
+        mean = self.total / self.frames
+        self.total, self.count = None, 0
+        self.latest, self.spots = fit_averaged_grid(mean, roi, full_scale, config, fit_rect)
+        self.latest['averaged_frames'] = self.frames
+        return self.latest
+
+
+def fit_averaged_grid(mean, roi, full_scale, config, fit_rect=None):
+    """Fit beam centers and a quadratic residual field after pixel averaging."""
+    from scipy.ndimage import gaussian_filter, maximum_filter
+    from .fit import fit_spots
+    from .measurements import SpotStatistics
+    from .spots import SpotArray
+    from .pipeline import saturated_spots
+
+    # Detection threshold is in equivalent 8-bit units; centroid fitting retains
+    # the floating-point full-depth average and uses untruncated image crops.
+    preview = mean * (255. / full_scale)
+    blurred = gaussian_filter(preview, 1.2)
+    contrast = blurred - gaussian_filter(preview, 12)
+    y, x = np.where((blurred == maximum_filter(blurred, 25)) & (contrast > 2.))
+    if fit_rect is not None:
+        x1, y1, x2, y2 = fit_rect
+        keep = ((x + roi[2] >= x1) & (x + roi[2] <= x2)
+                & (y + roi[3] >= y1) & (y + roi[3] <= y2))
+        x, y = x[keep], y[keep]
+    if len(x) < 4:
+        return {'valid': False, 'reason': 'Too few spots in averaged image'}, SpotArray.empty()
+    spots = fit_spots(mean, x, y, np.full(len(x), 6.), config.replace(gpu_enabled=False))
+    stats = SpotStatistics()
+    stats.update(spots, saturated=saturated_spots(mean, spots, full_scale))
+    result = grid_displacement(stats.rows, stats.columns, stats.grid_shear)
+    if not result['valid']:
+        return result, spots
+    ref, residual = result['reference'], result['residual']
+    scale = np.ptp(ref, axis=0) / 2
+    if np.any(scale <= 0):
+        return {'valid': False, 'reason': 'Grid has no spatial extent'}, spots
+    x, y = ((ref - ref.mean(axis=0)) / scale).T
+    design = np.column_stack((np.ones(len(x)), x, y, x*x, x*y, y*y))
+    coef, _, rank, _ = np.linalg.lstsq(design, residual, rcond=None)
+    if rank < 6:
+        return {'valid': False, 'reason': 'Need at least three rows and columns'}, spots
+    smooth = design @ coef
+    result.update(measured_residual=residual, residual=smooth,
+                  fit_error_rms_px=float(np.sqrt(np.mean(np.sum((residual-smooth)**2, axis=1)))))
+    return result, spots

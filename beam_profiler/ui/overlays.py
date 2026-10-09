@@ -222,7 +222,7 @@ def draw_grid_shear(img, shear: dict, y: int) -> int:
 
 
 def draw_displacement(img, view: ViewTransform, displacement: dict):
-    """Reference grid plus measured residual vectors exaggerated exactly 1000x."""
+    """Reference grid plus fitted residual vectors exaggerated exactly 1000x."""
     if not displacement['valid']:
         return
     reference = displacement['reference']
@@ -238,6 +238,7 @@ def draw_displacement(img, view: ViewTransform, displacement: dict):
             indices = np.flatnonzero(ids == label)
             indices = indices[np.argsort(reference[indices, axis])]
             if len(indices) >= 2:
+                cv2.polylines(img, [start[indices]], False, (150, 150, 150), 1, cv2.LINE_AA)
                 cv2.polylines(img, [end[indices]], False, (0, 165, 255), 1, cv2.LINE_AA)
     for a, b in zip(start, end):
         cv2.arrowedLine(img, tuple(a), tuple(b), (255, 255, 0), 1, cv2.LINE_AA, tipLength=.2)
@@ -246,7 +247,7 @@ def draw_displacement(img, view: ViewTransform, displacement: dict):
 
 def draw_displacement_stats(img, displacement: dict, y: int) -> int:
     if displacement['valid']:
-        lines = [f"E: displacement x1000 | 5-frame average | RMS: {displacement['rms_px']:.3f} px (actual)",
+        lines = [f"E: displacement x1000 | 20-image average then quadratic fit | RMS: {displacement['rms_px']:.3f} px (actual)",
                  'Rotation/shear removed | cyan: vectors | orange: exaggerated | white +: beam centers']
     else:
         lines = [f"E: displacement unavailable - {displacement['reason']}"]

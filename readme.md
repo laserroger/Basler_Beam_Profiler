@@ -98,10 +98,14 @@ Rotation and the remaining affine field (including shear) are removed after
 fitting freely spaced rows/columns. Cyan arrows connect reference positions to
 orange exaggerated positions/grid lines; the RMS label is in actual pixels.
 Fitted beam ellipses remain visible with H/E, with white crosses at their actual
-centers. E waits for five frames, then uses a rolling mean of the latest five
-displacement fields, matched by row/column identity. Toggling E, changing ROI,
-fitting region, exposure, camera or fit settings, losing a grid cell, or receiving
-an invalid/saturated fit clears the average. Actual beam markers remain live.
+centers. E averages 20 raw images in floating point, then detects and fits the
+spots once on that averaged image and fits a quadratic residual distortion field.
+It works without F. Gray lines show the reference grid; cyan vectors and orange
+lines show the smooth fit exaggerated 1,000x. The RMS reports the measured
+residual before quadratic smoothing. The latest completed fit remains visible
+while the next batch accumulates. ROI, fitting region, camera, exposure, gain or
+fit-setting changes clear the batch and previous overlay; E off also resets it.
+F/H remain independent and live beam markers remain visible when F is enabled.
 The current implementation groups approximately horizontal rows and vertical
 columns; a strongly rotated grid can still be misclassified. It does not
 generate a per-spot distortion map.
