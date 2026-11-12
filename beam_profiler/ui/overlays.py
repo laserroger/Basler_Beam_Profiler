@@ -82,7 +82,7 @@ def draw_spot_stats(
     sigma_std: float,
     show_curvature: bool,
 ) -> int:
-    """Spot-spacing statistics: std bars, mean spacings, curvature and sigma."""
+    """Spot-spacing statistics: std bars, mean spacings, curvature and D4sigma spread."""
     bar_y = y + LINE_H
     text(img, f"stdX: {std_dx:.2f} px", (10, bar_y + 15), scale=0.8)
     hbar(img, 170, bar_y, std_dx, factor=5)
@@ -97,7 +97,7 @@ def draw_spot_stats(
         centered_bar(img, 170, cy, curv_x, factor=2.5)
         text(img, f"CurY: {curv_y:.2f}", (320, cy + 15), scale=0.8)
         centered_bar(img, 480, cy, curv_y, factor=2.5)
-        text(img, f"std(s): {sigma_std:.3f}", (800, cy + 15), scale=0.8)
+        text(img, f"std(D4s): {sigma_std:.3f} px", (700, cy + 15), scale=0.6)
         hbar(img, 960, cy, sigma_std, factor=20)
     return bar_y
 
@@ -173,9 +173,9 @@ def draw_spots(img, spots, view: ViewTransform, pixel_size: float, min_label_rad
         label_y = int(ty[i])
         text(img, f"({spots.x[i]:.0f}, {spots.y[i]:.0f})", (centre[0], label_y),
              BGR_GREEN, scale=0.5, thickness=1)
-        text(img, f"s0={spots.sigma_0[i] * um:.1f} um", (centre[0], label_y + 18),
+        text(img, f"D4s major={2 * spots.sigma_0[i] * um:.1f} um", (centre[0], label_y + 18),
              BGR_GREEN, scale=0.5, thickness=1)
-        text(img, f"s1={spots.sigma_1[i] * um:.1f} um", (centre[0], label_y + 36),
+        text(img, f"D4s minor={2 * spots.sigma_1[i] * um:.1f} um", (centre[0], label_y + 36),
              BGR_GREEN, scale=0.5, thickness=1)
 
 

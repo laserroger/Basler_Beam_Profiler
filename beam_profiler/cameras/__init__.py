@@ -23,7 +23,7 @@ def _open_basler(mode):
         raise
 
 
-def open_cameras(mode="16Bit", simulate=False, backend="auto", **sim_opts):
+def open_cameras(mode="16Bit", simulate=False, backend="auto", adc_bits=None, **sim_opts):
     if backend not in ("auto", "flir", "basler", "sim"):
         raise ValueError(f"Unknown camera backend: {backend}")
     if simulate or backend == "sim":
@@ -34,7 +34,7 @@ def open_cameras(mode="16Bit", simulate=False, backend="auto", **sim_opts):
         if backend not in ("auto", name):
             continue
         try:
-            found = discover(mode)
+            found = discover(mode, adc_bits=adc_bits) if name == "flir" else discover(mode)
             if not found and backend == name:
                 raise RuntimeError(f"No {name.upper()} cameras detected. Check USB and the vendor viewer.")
             cameras.extend(found)

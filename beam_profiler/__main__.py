@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import math
 import os
 import sys
 
@@ -40,9 +41,24 @@ def main(argv=None):
                         help="exit after this many frames (for package smoke checks)")
     parser.add_argument("--check-drivers", action="store_true",
                         help="verify bundled Basler and FLIR libraries and exit")
+    parser.add_argument('--calibration', metavar='PROFILE',
+                        help='flat-field profile JSON or a calibration output directory')
+    parser.add_argument('--exposure-us', type=float, help='explicit initial exposure in microseconds')
+    parser.add_argument('--save-dir', help='directory for saved raw frames, display JPEGs and settings')
+    parser.add_argument('--adc-bits', type=int, choices=[8, 10, 12], help='explicit FLIR ADC digitization depth')
+    parser.add_argument('--web', action='store_true', help='start the HTTP API with the viewer')
+    parser.add_argument('--spot-sizes', action='store_true', help='start fitting, live D4sigma diameter plots, and HTTP server')
     args = parser.parse_args(argv)
     if args.frames is not None and args.frames < 1:
         parser.error("--frames must be positive")
+    if args.exposure_us is not None and (not math.isfinite(args.exposure_us) or args.exposure_us <= 0):
+        parser.error('--exposure-us must be positive and finite')
+    if args.save_dir:
+        from . import config
+        config.DATA_DIR = os.path.abspath(os.path.expanduser(args.save_dir))
+        os.makedirs(config.DATA_DIR, exist_ok=True)
+    from .calibration import FlatField
+    calibration = FlatField.load(args.calibration) if args.calibration else None
 
     logging.basicConfig(
         level=logging.INFO,
@@ -72,7 +88,7 @@ def main(argv=None):
         jitter=args.sim_jitter, sigma=args.sim_sigma,
     )
     try:
-        cameras = open_cameras(mode=args.mode, simulate=args.sim, backend=args.camera, **sim_opts)
+        cameras = open_cameras(mode=args.mode, simulate=args.sim, backend=args.camera, adc_bits=args.adc_bits, **sim_opts)
     except RuntimeError as exc:
         parser.exit(1, f"{exc}\n")
 
@@ -80,7 +96,23 @@ def main(argv=None):
 
     viewer = None
     try:
-        viewer = Viewer(cameras)
+        if calibration is not None and calibration.metadata.get('camera_serial'):
+            serial = str(calibration.metadata['camera_serial'])
+            cameras.sort(key=lambda camera: str(camera.serial) != serial)
+        if args.exposure_us is not None:
+            cameras[0].ExposureTime = args.exposure_us
+        if calibration is not None:
+            reason = calibration.mismatch(cameras[0])
+            if reason:
+                raise ValueError('Cannot apply calibration: ' + reason)
+            calibration.check_adc(cameras[0])
+            logging.info('Loaded calibration %s', calibration.path)
+        viewer = Viewer(cameras, calibration=calibration)
+        viewer.exposure_us = cameras[0].ExposureTime
+        if args.spot_sizes:
+            viewer._toggle_sizes()
+        if args.web or args.spot_sizes:
+            viewer._toggle_web_server()
         viewer.run(max_frames=args.frames)
     finally:
         close_cameras(cameras, failed=viewer is not None and viewer.camera_failed)

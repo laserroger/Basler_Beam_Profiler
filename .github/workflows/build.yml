@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      windows_spot_tracing:
+        description: 'Build only the Windows spot-tracing branch package (runtime libraries only; no tests)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -16,19 +22,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Fetch pinned Windows FLIR runtime and driver installer
+      - name: Fetch pinned Windows FLIR runtime libraries
         run: python -m tools.fetch_windows_vendor
-      - name: Build offline Windows installer with bundled FLIR
+      - name: Build application-only Windows installer with FLIR libraries
+        if: ${{ !inputs.windows_spot_tracing }}
         shell: pwsh
         run: |
-          ./tools/build_windows.ps1 -SpinnakerInstaller .vendor/windows/SpinnakerSDK_FULL_4.4.0.246_x64.exe -PySpinWheel .vendor/windows/spinnaker_python-4.4.0.246-cp312-cp312-win_amd64.whl
+          ./tools/build_windows.ps1 -PySpinWheel .vendor/windows/spinnaker_python-4.4.0.246-cp312-cp312-win_amd64.whl
+      - name: Bundle this spot-tracing branch for Windows (no tests)
+        if: ${{ inputs.windows_spot_tracing }}
+        shell: pwsh
+        run: ./tools/bundle_spot_tracing_windows.ps1
       - uses: actions/upload-artifact@v4
         with:
-          name: pylon_camera-windows
-          path: dist/BeamProfiler-Windows-x64-Setup.exe
+          name: ${{ inputs.windows_spot_tracing && 'spot-tracing-windows' || 'pylon_camera-windows' }}
+          path: ${{ inputs.windows_spot_tracing && 'dist/BeamProfiler-SpotTracing-Windows-x64-Setup.exe' || 'dist/BeamProfiler-Windows-x64-Setup.exe' }}
           if-no-files-found: error
 
   test-windows-installer:
+    if: ${{ !inputs.windows_spot_tracing }}
     name: Verify installer on separate Windows runner
     needs: build-windows
     runs-on: windows-latest
@@ -37,16 +49,16 @@ jobs:
         with:
           name: pylon_camera-windows
           path: installer
-      - name: Install bundled runtime and USB drivers
+      - name: Install application without changing camera software
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $sdk = "$env:ProgramFiles\Teledyne\Spinnaker"
-          if (Test-Path $sdk) { throw 'Verification requires a runner without Spinnaker.' }
+          if (Test-Path $sdk) { throw 'Verification requires a runner without a system Spinnaker SDK.' }
           $setup = (Resolve-Path installer/BeamProfiler-Windows-x64-Setup.exe).Path
           $install = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LOG=setup.log' -Wait -PassThru
           if ($install.ExitCode -notin @(0, 3010)) { throw "Setup failed: $($install.ExitCode)" }
-          if (-not (Test-Path $sdk)) { throw 'Bundled Spinnaker installer did not install its runtime.' }
+          if (Test-Path $sdk) { throw 'Application setup unexpectedly installed a system Spinnaker SDK.' }
       - name: Verify packaged app without SDK paths
         shell: pwsh
         run: |
@@ -67,9 +79,9 @@ jobs:
           name: windows-installer-logs
           path: |
             setup.log
-            C:/ProgramData/Spinnaker/Logs/**
 
   build-macos:
+    if: ${{ !inputs.windows_spot_tracing }}
     name: Build macOS app and DMG (Apple Silicon)
     runs-on: macos-26
     steps:
@@ -112,7 +124,7 @@ jobs:
   release:
     needs: [test-windows-installer, build-macos]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && !inputs.windows_spot_tracing
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -130,9 +142,9 @@ jobs:
             Offline Windows installer and Apple Silicon macOS app.
 
             Windows: run BeamProfiler-Windows-x64-Setup.exe and approve the
-            administrator prompt. It includes Python, Basler/FLIR runtime libraries,
-            and the vendor installer for FLIR USB drivers and prerequisites.
-            No separate SDK, Python installation, or dependency download is needed.
+            administrator prompt. It includes Python and matching Basler/FLIR
+            runtime libraries. Camera drivers already installed on the PC are used.
+            No Spinnaker SDK installer or camera-driver installer is included or run.
 
             macOS: open the DMG and drag pylon_camera.app into Applications.
             The app is ad-hoc signed, not Apple-notarized. Configuration and saved

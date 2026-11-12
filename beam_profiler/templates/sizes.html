@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Individual spot tracing</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#10161c;color:#edf4fa;font:15px system-ui}header{padding:24px 32px;border-bottom:1px solid #30404d}h1{margin:0 0 8px;font-size:26px;font-weight:600}p{color:#abc0cf;margin:8px 0}main{padding:22px 32px;display:grid;grid-template-columns:minmax(300px,600px) minmax(480px,1fr);gap:24px}.card{background:#151f28;border:1px solid #30404d;border-radius:12px;padding:18px}h2{font-size:17px;margin:0 0 12px}#preview{width:100%;display:block;cursor:crosshair;border-radius:6px}#plot{width:100%;display:block}button,input{accent-color:#56c6ec}button{background:#253d4d;border:1px solid #4b7188;color:white;border-radius:6px;padding:8px 14px;cursor:pointer}.controls{display:flex;align-items:center;gap:24px;flex-wrap:wrap}label{display:flex;gap:10px;align-items:center}input[type=range]{width:170px}output{min-width:65px;color:#73d4f4;font-variant-numeric:tabular-nums}#status,#selection{font-variant-numeric:tabular-nums}#selection{color:#79d6f0;min-height:24px}.hint{font-size:13px}#message{color:#ffc981}@media(max-width:1000px){main{grid-template-columns:1fr;padding:16px}header{padding:20px}}
+</style>
+<header><h1>Individual spot tracing <span style="color:#65c9ed">/ D4σ</span></h1><p>Click several spots to trace them together. Click a selected spot again to remove it.</p></header>
+<main><section class="card"><h2>Camera · click to select</h2><img id="preview" alt="Camera image: click a spot to trace"><p class="hint">Positions are full-sensor pixels. Colored rings match each spot’s trace.</p><button id="clear">Clear all selections</button><p id="message" role="status"></p></section>
+<section class="card"><h2>Selected spots · live sizes</h2><p id="selection">No spots selected</p><div class="controls" style="gap:12px;margin:12px 0">
+<label>Y min (µm) <input id="ymin" aria-label="Y min" type="number" min="0" step="any" value="45" style="width:80px"></label>
+<label>Y max (µm) <input id="ymax" aria-label="Y max" type="number" min="0" step="any" value="65" style="width:80px"></label>
+<button id="apply-y">Apply Y range</button><button id="auto-y">Auto Y</button>
+<label>Time window (s) <input id="window" aria-label="Time window" type="number" min="1" max="600" step="1" value="60" style="width:75px"></label>
+<button id="apply-window">Apply window</button><button id="reset-time">Reset time</button></div>
+<p id="plot-error" role="status" style="color:#ffc981"></p><img id="plot" alt="Selected spot diameters vs time"><p id="status">Connecting…</p><p class="hint">Major/minor 4σ diameters in µm. Missing, ambiguous and saturated fits leave gaps. Adding another spot keeps existing traces. Click again to deselect.</p></section></main>
+<script>
+const status=document.getElementById('status'),message=document.getElementById('message');
+let latest=null,plotLimits=null;
+const plotError=document.getElementById('plot-error');
+document.getElementById('apply-y').onclick=()=>{
+ const a=document.getElementById('ymin'),b=document.getElementById('ymax');
+ const low=a.valueAsNumber,high=b.valueAsNumber;
+ if(!Number.isFinite(low)||!Number.isFinite(high)||low<0||low>=high){plotError.textContent='Use finite values with 0 ≤ Y min < Y max';return;}
+ plotLimits=[low,high];plotError.textContent='';
+};
+document.getElementById('auto-y').onclick=()=>{plotLimits=null;plotError.textContent='';};
+async function plotCommand(path,body){try{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});const d=await r.json();plotError.textContent=r.ok?'':d.error;}catch(e){plotError.textContent=e.message;}}
+document.getElementById('reset-time').onclick=()=>plotCommand('/api/spot_sizes/reset_time');
+document.getElementById('apply-window').onclick=()=>plotCommand('/api/spot_sizes/window',{seconds:document.getElementById('window').valueAsNumber});
+async function select(position){const r=await fetch('/api/spot_sizes/select',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({position})});const d=await r.json();message.textContent=r.ok?'':d.error;}
+document.getElementById('preview').addEventListener('click',e=>{if(!latest)return;const b=e.currentTarget.getBoundingClientRect();const [w,h,ox,oy]=latest.roi;select([ox+(e.clientX-b.left)*w/b.width,oy+(e.clientY-b.top)*h/b.height]);});
+document.getElementById('clear').onclick=()=>select(null);
+async function refresh(){try{const r=await fetch('/api/spot_sizes',{cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error);latest=d;
+const age=Date.now()/1000-d.timestamp;status.textContent=`${d.spot_count} spots · frame age ${age.toFixed(1)} s`+(age>2?' · STALE':'');
+const traces=d.traces||[],selection=document.getElementById('selection');selection.replaceChildren();if(!traces.length)selection.textContent='No spots selected — click spots to begin';for(const t of traces){const line=document.createElement('div');line.style.color=t.color;line.textContent=`#${t.id} (${t.x_sensor_px.toFixed(0)}, ${t.y_sensor_px.toFixed(0)}) · ${t.valid?t.major_um.toFixed(2)+' / '+t.minor_um.toFixed(2)+' µm':t.reason}`;selection.append(line);}
+for(const [id,url]of [['plot','/api/spot_sizes/plot'],['preview','/api/preview']]){const img=document.getElementById(id);if(!img.dataset.loading){img.dataset.loading='1';img.onload=img.onerror=()=>delete img.dataset.loading;img.src=url+'?t='+d.timestamp+(id==='plot'&&plotLimits?'&y_min='+plotLimits[0]+'&y_max='+plotLimits[1]:'');}}
+}catch(e){status.textContent='Disconnected / waiting: '+e.message;}setTimeout(refresh,150);}refresh();
+</script></html>

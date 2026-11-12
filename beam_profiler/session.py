@@ -16,6 +16,7 @@ class SessionSnapshot:
     result: FrameResult | None = None
     status: dict = field(default_factory=dict)
     angular: dict | None = None
+    sizes: dict | None = None
 
 
 class LiveSession:
@@ -37,6 +38,18 @@ class LiveSession:
             raise ValueError('Unknown region')
         with self._lock:
             self._commands.append((name, coords))
+
+    def select_spot(self, position):
+        with self._lock:
+            self._commands.append(("trace_spot", position))
+
+    def reset_trace_time(self):
+        with self._lock:
+            self._commands.append(('trace_reset', None))
+
+    def set_trace_window(self, seconds):
+        with self._lock:
+            self._commands.append(('trace_window', seconds))
 
     def set_fit_config(self, changes):
         with self._lock:

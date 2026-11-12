@@ -1,51 +1,35 @@
-# Windows standalone installer
+# Windows application-only installer
 
-The new Windows packaging is intended to produce one offline
-`BeamProfiler-Windows-x64-Setup.exe` for a Windows x64 computer without Python
-or camera software. It includes the application, matching PySpin binding,
-Spinnaker DLLs and GenTL transport, and the signed vendor installer for runtime
-prerequisites and USB camera drivers. Windows administrator approval is required
-when installing drivers. Users should not need separate dependency downloads.
-
-### Preserve existing camera software
-
-Setup checks both 32-bit and 64-bit Windows uninstall registries for Spinnaker,
-FLIR USB drivers, and Basler/pylon, plus common vendor installation folders.
-If found, **Install bundled FLIR USB drivers** is unchecked: installing Beam
-Profiler leaves that software alone. Silent installs use the same default.
-On a fresh machine the option is checked to provide offline FLIR USB support.
-The application always includes its own runtime libraries, regardless of this
-option. No Basler installer or uninstaller is run.
-
-Only select the driver option on an existing setup if you intend to run the
-vendor installer: it can modify installed Spinnaker components. If only Basler
-software is installed, using a FLIR camera may still require its USB driver.
-Uninstalling Beam Profiler does not uninstall either vendor's software.
-
-The older `pylon_camera.exe` releases include Basler support but lack Windows FLIR
-runtime/binding packaging.
+`BeamProfiler-Windows-x64-Setup.exe` includes the application, Python, matching
+PySpin binding, Spinnaker DLLs and GenTL transport, and Basler runtime support.
+It uses the camera drivers already installed on the destination computer.
+No Spinnaker SDK installer or camera-driver installer is downloaded for the
+build, embedded in the package, or executed by Setup. Installing or uninstalling
+Beam Profiler leaves existing camera software and drivers untouched.
 
 ## Building
 
-On a Windows x64 build machine, install Python 3.12 x64 and Inno Setup 6. Obtain
-the Windows x64 **full/offline** Spinnaker 4.x installer and matching
-`spinnaker_python-…-cp312-cp312-win_amd64.whl` from Teledyne. The web installer
-is unsuitable because the finished setup must work offline.
-
-From PowerShell:
+On Windows x64, use Python 3.12 x64 and Inno Setup 6. Fetch the pinned PySpin
+wheel and license notices with `python -m tools.fetch_windows_vendor`, then:
 
 ```powershell
-./tools/build_windows.ps1 -SpinnakerInstaller C:/Downloads/SpinnakerSDK_FULL_VERSION_x64.exe -PySpinWheel C:/Downloads/spinnaker_python-VERSION-cp312-cp312-win_amd64.whl
+./tools/build_windows.ps1 -PySpinWheel .vendor/windows/spinnaker_python-4.4.0.246-cp312-cp312-win_amd64.whl
 ```
 
-The script checks the vendor signature, bundles
-the native files and license notices, verifies both camera drivers and a short
-simulator run, then compiles the offline installer. Match the SDK and wheel
-versions. Do not use the unrelated `pyspin` package on PyPI.
+The build collects the wheel's matching native runtime libraries into the app
+and compiles the application-only installer. The GitHub workflow uses the same
+build path. Its installer verification expects no system SDK to be installed
+by Setup; runtime-library checks use the app's bundled libraries.
 
-Before release, test the installer on a separate clean Windows machine with no
-Spinnaker SDK, Python, or vendor paths; initialize both drivers, open settings,
-and acquire frames from the connected FLIR. A simulator or driver-load check
-alone is not a live-camera acceptance test.
+## Spot-tracing branch package
 
-The vendor install features follow [Teledyne's distribution instructions](https://www.teledynevisionsolutions.com/support/support-center/technical-guidance/iis/distributing-spinnaker-applications/).
+Run `./tools/bundle_spot_tracing_windows.ps1` for a one-time Windows-only bundle.
+It downloads the pinned runtime wheel, builds without executing the application
+or tests, and produces `dist/BeamProfiler-SpotTracing-Windows-x64-Setup.exe`.
+The executable enables live spot tracing by default. It has a separate product
+name and installation directory, includes no custom demo, and leaves camera
+drivers untouched.
+
+The existing GitHub workflow has a manual `windows_spot_tracing` input. Dispatch
+`build.yml` at `live-spot-diameters` with that input set to `true` for the same
+Windows-only artifact. No macOS build, verification jobs or release runs in that mode.

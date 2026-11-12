@@ -347,3 +347,53 @@ build; grid-distortion is maintained separately.
 Based on [Tim's original Basler Beam Profiler](https://github.com/tim4431/Basler_Beam_Profiler).
 See [LICENSE](LICENSE) for the project license; bundled camera runtimes retain
 their vendor licenses.
+
+
+### Individual spot tracing with 4σ diameters
+
+Run `python -m beam_profiler --spot-sizes` to open the camera and trace windows.
+Press **L** to open/close the trace window and enable fitting. Click a spot in the camera
+window to toggle its selection. With the server on, open http://localhost:5000/sizes and click multiple
+spots in the camera preview. Each selected spot has independent major/minor D4σ traces,
+never a mean across spots. Selection uses full-sensor coordinates, with a 40-pixel gate;
+missing, ambiguous, invalid or saturated detections produce gaps. This is spatial association,
+not an identity tracker for crossing or fast-moving beams. Clicking another spot adds its trace and preserves existing histories. Clicking a selected
+spot removes only that trace; Clear all selections removes every trace. Colors and IDs remain
+stable while other traces are added or removed. Association gates shrink for closely spaced spots. The time window is selectable from 1 to 600 seconds (default 60) and resets on ROI, fitting region,
+calibration, mode or fit-setting changes; switching cameras clears the selection.
+The ellipse has 2σ half-axes, so its full width is the displayed 4σ diameter.
+Legacy API `sigma_0`, `sigma_1`, and `sigma` remain 2σ radius quantities for compatibility;
+`/api/spots` adds `diameter_major_um` and `diameter_minor_um`.
+`/api/spot_sizes` supplies individual diameters and a `traces` array (ID, color, anchor, validity, history); POST
+`{"position":[sensor_x,sensor_y]}` to `/api/spot_sizes/select` to toggle a selection, or `null` to clear all.
+These diameters derive from the existing fit, including its configured weighting.
+
+Plot controls: set **Y min / Y max (µm)** and click **Apply Y range**, or use **Auto Y**.
+Set the **Time window (s)** and click **Apply window** (1–600 seconds). A longer window
+fills as new frames arrive; already discarded samples cannot be recovered. **Reset time**
+clears plotted history for all selected spots and restarts elapsed seconds at zero without
+changing selections, Y limits or the time window. Desktop users get the same controls
+in the Spot trace controls window opened with the plot.
+
+Trace history has a shared memory budget below **10 MB** across all selected spots.
+Current records are limited to 4 MB / 12,000 samples total, with headroom for the
+published snapshot. Oldest samples are evicted first; high frame rates or many selected
+spots may shorten the requested time window. Camera frames and rendered images are
+separate from the history budget.
+
+The size window contains two stacked time plots: major-axis D4σ diameter above,
+minor-axis D4σ diameter below. Both use solid traces and matching per-spot colors,
+with the same time window, reset clock and selected Y limits.
+
+
+### One-time Windows spot-tracing package
+
+On Windows, run `./tools/bundle_spot_tracing_windows.ps1` in PowerShell.
+It creates `dist/BeamProfiler-SpotTracing-Windows-x64-Setup.exe`, with spot tracing
+opened by default and runtime libraries only. The SDK/driver installer and
+custom three-spot demo are not included. It does not execute the app or tests.
+
+To build this branch on the existing GitHub Windows runner, manually dispatch:
+`gh workflow run build.yml --ref live-spot-diameters -f windows_spot_tracing=true`
+This mode builds Windows only, skips tests and macOS, and uploads the
+`spot-tracing-windows` artifact without creating a release.

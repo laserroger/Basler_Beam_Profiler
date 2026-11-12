@@ -21,14 +21,15 @@ class BeamFit:
     message: str
 
 
-def fit_single_beam(frame, max_side=128):
+def fit_single_beam(frame, max_side=128, *, full_scale=None, saturation_frame=None):
     def empty(message):
         return BeamFit(SpotArray.empty(), message)
 
     h, w = frame.shape
     if min(h, w) < 8:
         return empty('Select a larger fitting region')
-    full_scale = np.iinfo(frame.dtype).max if np.issubdtype(frame.dtype, np.integer) else 1.0
+    if full_scale is None:
+        full_scale = np.iinfo(frame.dtype).max if np.issubdtype(frame.dtype, np.integer) else 1.0
     # Retain approximate geometry for the red saturation warning overlay.
     # Saturated fits are explicitly marked unreliable by the viewer.
     scale = min(1.0, max_side / max(h, w))
@@ -99,7 +100,7 @@ def fit_single_beam(frame, max_side=128):
     mean_core = (bg + amplitude * 2 * (1 - np.exp(-0.5))) * span + low
     spots = SpotArray([cx], [cy], [2*sigmas[0]], [2*sigmas[1]],
                       axes[0:1], axes[1:2], [peak], [mean_core])
-    if saturated_spots(frame, spots, full_scale).any():
+    if saturated_spots(frame if saturation_frame is None else saturation_frame, spots, full_scale).any():
         message = "Saturated: reduce exposure; fit unreliable; " + message
     return BeamFit(spots, message)
 

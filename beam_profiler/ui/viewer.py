@@ -30,6 +30,7 @@ from ..processing.displacement import ImageGridAverage
 from ..session import LiveSession, SessionSnapshot
 from ..roi import ROIModel, ViewTransform
 from ..status import write_status, viewer_status
+from ..calibration import display_gray
 from . import overlays, settings
 
 WINDOW = "Beam Profiler - Basler / FLIR"
@@ -44,13 +45,15 @@ KEY_FACTORS = {
 
 
 class Viewer:
-    def __init__(self, cameras: list):
+    def __init__(self, cameras: list, calibration=None):
         self._quit_requested = False
         self.camera_failed = False
         self._native_close_handler = None
         self._native_key_monitor = None
         self._pending_keys = deque()
         self.cameras = cameras
+        self.calibration = calibration
+        self.calibration_requested = calibration is not None
         self.curr_idx = 0
         self.camera = cameras[0]
         self.roi_model = ROIModel(self.camera.W, self.camera.H)
@@ -82,11 +85,16 @@ class Viewer:
 
         # Current display state; HTTP consumers use the published session snapshot.
         self.current_frame = None
+        self.current_raw_frame = None
         self.latest_spots = SpotArray.empty()
         self.current_rect_stats = None
         self.web_server_enabled = False
         self.show_rect_stats = False
         self._web_thread = None
+        from ..processing.sizes import SizeMonitor
+        self.size_monitor = SizeMonitor()
+        self.size_data = None
+        self.show_sizes = False
         self.angular_monitor = None  # opt-in single-shot dispersion view
 
         # WINDOW_GUI_NORMAL drops the Qt toolbar and the pixel-hover overlay,
@@ -160,27 +168,39 @@ class Viewer:
                 if not self._poll_keys(10):
                     break
                 continue
-            self.current_frame = frame
+            self.current_raw_frame = frame
+            self._analyze_frame(frame)
             if self.angular_monitor is not None:
                 self.angular_monitor.update(
-                    frame, self.camera.ROI, self.fit_rect_sensor,
+                    self.current_frame, self.camera.ROI, self.fit_rect_sensor,
                     fitconfig.active(), acquisition_ms, pixel_um=self.camera.pixel_size * 1e6,
                 )
-            frame_disp = (
-                cv2.convertScaleAbs(frame, alpha=1 / 256.0)
-                if self.camera.mode == "16Bit"
-                else frame
-            )
+            frame_disp = display_gray(self.current_frame, self.camera.saturation)
             self.frame_disp = frame_disp
 
-            self._analyze_frame(frame)
             self.session.publish(SessionSnapshot(
                 result=self.analysis, status=viewer_status(self),
+                sizes=self.size_data,
                 angular=self.angular_monitor.latest if self.angular_monitor is not None else None,
             ))
 
             disp = self._compose(frame_disp, self.latest_spots)
             cv2.imshow(WINDOW, disp)
+            if self.show_sizes:
+                from .sizes import WINDOW as SIZE_WINDOW, render_sizes, window_render_geometry
+                if cv2.getWindowProperty(SIZE_WINDOW, cv2.WND_PROP_VISIBLE) < 1:
+                    self.show_sizes = False
+                    controls = getattr(self, "_size_controls", None)
+                    if controls is not None:
+                        controls.destroy()
+                        self._size_controls = None
+                else:
+                    controls = getattr(self, "_size_controls", None)
+                    plot_width, plot_height, plot_scale = window_render_geometry(SIZE_WINDOW)
+                    cv2.imshow(SIZE_WINDOW, render_sizes(self.size_data,
+                               y_limits=controls.limits if controls is not None else None,
+                               width=plot_width, height=plot_height,
+                               pixel_ratio=plot_scale))
             if self.angular_monitor is not None:
                 self._spacing_window.update(self.angular_monitor.latest)
             if not self._poll_keys(1):
@@ -193,6 +213,7 @@ class Viewer:
     def _camera_unavailable(self, message):
         self.camera_failed = True
         self.current_frame = None
+        self.current_raw_frame = None
         self.analysis = None
         self.latest_spots = SpotArray.empty()
         status = dict(self.session.read().status)
@@ -212,6 +233,12 @@ class Viewer:
         return frame
 
     def _analyze_frame(self, frame):
+        calibration = getattr(self, 'calibration', None)
+        active = (calibration if calibration is not None and self.calibration_requested
+                  and calibration.mismatch(self.camera) is None else None)
+        if self.processor.calibration is not active:
+            self.processor.statistics = type(self.processor.statistics)()
+        self.processor.calibration = active
         self.analysis = self.processor.process(
             frame, roi=self.camera.ROI, pixel_size=self.camera.pixel_size,
             full_scale=self.camera.saturation,
@@ -226,9 +253,14 @@ class Viewer:
         self.statistics = self.analysis.statistics
         self.current_rect_stats = self.analysis.rect_stats
         self.profiler_message = self.analysis.profiler_message
+        if hasattr(self, "size_monitor"):
+            context = (self.camera.serial, tuple(self.camera.ROI), self.fit_rect_sensor,
+                       self.do_fitting, self.profiler_enabled, repr(fitconfig.active()),
+                       id(active))
+            self.size_data = self.size_monitor.update(self.analysis, context)
         if self.show_displacement and not self.profiler_enabled:
             self._displacement_average.update(
-                frame, roi=self.camera.ROI, camera=self.camera.serial,
+                self.current_frame, roi=self.camera.ROI, camera=self.camera.serial,
                 exposure=self.camera.ExposureTime, gain=self.camera.Gain,
                 full_scale=self.camera.saturation, config=fitconfig.active(),
                 fit_rect=self.fit_rect_sensor, frame_id=self.analysis.timestamp)
@@ -237,7 +269,13 @@ class Viewer:
 
     def _apply_web_commands(self):
         for name, value in self.session.take_commands():
-            if name == "fit_config":
+            if name == "trace_reset":
+                self.size_monitor.reset_time()
+            elif name == "trace_window":
+                self.size_monitor.set_window(value)
+            elif name == "trace_spot":
+                self.size_monitor.select(value)
+            elif name == "fit_config":
                 fitconfig.set_active(fitconfig.active().replace(**value))
             else:
                 setattr(self, name, value)
@@ -280,6 +318,15 @@ class Viewer:
             if averaged_spots is not None:
                 spots = averaged_spots
                 saturated = np.zeros(len(spots), dtype=bool)
+        # Each selected beam has its own stable color and sensor-space anchor.
+        if getattr(self, "show_sizes", False):
+            from .sizes import bgr
+            for target in self.size_monitor.targets.values():
+                point = view.to_display(target['x_sensor_px'], target['y_sensor_px'])
+                color = bgr(target['color'])
+                cv2.circle(disp, point, 18, color, 2, cv2.LINE_AA)
+                overlays.text(disp, f"Trace #{target['id']}", (point[0]+20,point[1]-15),
+                              color, scale=.5, thickness=1)
         # Draw the actual beam fits above grid/displacement lines, in every mode.
         if len(spots):
             overlays.draw_spots(disp, spots, view, self.camera.pixel_size, saturated=saturated,
@@ -302,7 +349,7 @@ class Viewer:
                 float(np.mean(self.statistics.stats_dy)) * self.camera.pixel_size * 1e6,
                 self.statistics.curvature(self.statistics.stats_dx),
                 self.statistics.curvature(self.statistics.stats_dy),
-                self.statistics.sigma_std_ema,
+                2 * self.statistics.sigma_std_ema,
                 show_curvature=not self.row_col_fitting and not self.statistics._stats_grid_mode,
             )
             if self.row_col_fitting:
@@ -324,10 +371,23 @@ class Viewer:
             return None
         sx, sy = (int(np.floor(v + 0.5)) for v in view.to_sensor(*self._mouse_display))
         x, y = sx - view.ox, sy - view.oy
-        h, w = self.current_frame.shape[:2]
+        raw = getattr(self, 'current_raw_frame', None)
+        if raw is None:
+            raw = self.current_frame
+        h, w = raw.shape[:2]
         if not (0 <= x < w and 0 <= y < h):
             return None
-        return sx, sy, int(self.current_frame[y, x])
+        return sx, sy, int(raw[y, x])
+
+    def calibration_status(self):
+        calibration = getattr(self, 'calibration', None)
+        if calibration is None:
+            return dict(enabled=False, reason='no calibration loaded')
+        reason = calibration.mismatch(self.camera)
+        if not self.calibration_requested:
+            reason = 'toggled off'
+        return dict(enabled=reason is None, reason=reason, path=calibration.path,
+                    invalid_pixels=calibration.invalid_pixels)
 
     def _hud_lines(self) -> list[str]:
         exposure = self.camera.ExposureTime
@@ -347,14 +407,16 @@ class Viewer:
             detail = 'Single Gaussian + background; Shift-drag selects region; v clears'
             if len(self.latest_spots):
                 spot = self.latest_spots[0]
-                detail = (f"1/e^2 radii: {spot['sigma_0']*um:.1f}, {spot['sigma_1']*um:.1f} um; "
+                detail = (f"4 sigma diameters: {2*spot['sigma_0']*um:.1f}, {2*spot['sigma_1']*um:.1f} um; "
                           'Shift-drag region, v clears')
         return [
             f"Camera: {self.camera.model_name}, FPS: {1 / self.avg_dt:4.1f}",
             f"ROI: {self.camera.ROI}  {mouse_line}",
             f"Exposure: {exposure_txt} us",
+            ('Calibration: ON (B toggles)' if self.calibration_status()['enabled'] else
+             'Calibration: OFF - ' + self.calibration_status()['reason']),
             f"Rect: {self.rect_sensor}, W = {rect_w:.1f} um, H = {rect_h:.1f} um",
-            fitting_line,
+            fitting_line + " | L: live 4 sigma sizes",
             detail,
             f"Web Server: {'ON' if self.web_server_enabled else 'OFF'}, "
             f"Rect Stats: {'ON' if self.show_rect_stats else 'OFF'} (Press 'w' to toggle)",
@@ -459,6 +521,11 @@ class Viewer:
             self.last_mouse = (int(np.floor(sx + 0.5)), int(np.floor(sy + 0.5)))
         ctrl = flags & (cv2.EVENT_FLAG_CTRLKEY | cv2.EVENT_FLAG_SHIFTKEY)
 
+        if (event == cv2.EVENT_LBUTTONDOWN and not ctrl
+                and getattr(self, "show_sizes", False) and view.contains(x, y)):
+            if self.size_monitor.select(view.to_sensor(x, y)):
+                return
+
         if event == cv2.EVENT_LBUTTONDOWN and view.contains(x, y):
             if ctrl:
                 self.fit_rect_disp = [x, y, x, y]
@@ -489,6 +556,23 @@ class Viewer:
         return (int(s1[0]), int(s1[1]), int(s2[0]), int(s2[1]))
 
     # ------------------------------ keys ---------------------------------- #
+    def _toggle_sizes(self):
+        from .sizes import WINDOW as SIZE_WINDOW
+        self.show_sizes = not self.show_sizes
+        if self.show_sizes:
+            if not self.profiler_enabled:
+                self.do_fitting = True
+            cv2.namedWindow(SIZE_WINDOW, cv2.WINDOW_NORMAL | cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_FREERATIO)
+            cv2.resizeWindow(SIZE_WINDOW, 1000, 720)
+            from .sizes import SizeControls
+            self._size_controls = SizeControls(self.session)
+        else:
+            cv2.destroyWindow(SIZE_WINDOW)
+            controls = getattr(self, "_size_controls", None)
+            if controls is not None:
+                controls.destroy()
+                self._size_controls = None
+
     def _toggle_angular(self):
         if self.angular_monitor is not None:
             self.angular_monitor = None
@@ -522,6 +606,8 @@ class Viewer:
             self.profiler_enabled = False
             self.profiler_message = ''
             self.latest_spots = SpotArray.empty()
+        elif key == ord("l"):
+            self._toggle_sizes()
         elif key == ord("g"):
             self.show_stats = not self.show_stats
         elif key == ord("h"):
@@ -530,6 +616,11 @@ class Viewer:
             self.show_displacement = not self.show_displacement
             if hasattr(self, '_displacement_average'):
                 self._displacement_average.reset()
+        elif key == ord('b'):
+            if getattr(self, 'calibration', None) is not None:
+                self.calibration_requested = not self.calibration_requested
+                self._displacement_average.reset()
+                write_status(self)
         elif key == ord("c"):
             self.rect_sensor = None
         elif key == ord("v"):
@@ -594,7 +685,13 @@ class Viewer:
     def _save_frame(self, jpg_path: str):
         """JPEG of the display frame plus the raw frame as .npy."""
         cv2.imwrite(jpg_path, self.frame_disp)
-        np.save(os.path.splitext(jpg_path)[0] + ".npy", self.current_frame)
+        raw = getattr(self, 'current_raw_frame', None)
+        np.save(os.path.splitext(jpg_path)[0] + ".npy", self.current_frame if raw is None else raw)
+        if self.calibration_status()['enabled']:
+            np.save(os.path.splitext(jpg_path)[0] + '_calibrated.npy', self.current_frame)
+        import json
+        with open(os.path.splitext(jpg_path)[0] + '.json', 'w') as handle:
+            json.dump(viewer_status(self), handle, indent=2)
         logging.info("Saved %s (+ .npy)", jpg_path)
 
     def _quick_save(self):
@@ -626,6 +723,7 @@ class Viewer:
             profiler_enabled=self.profiler_enabled,
             show_stats=self.show_stats,
         )
+        self.size_monitor.select(None)
         self.processor = FrameProcessor()
         self.curr_idx = (self.curr_idx + 1) % len(self.cameras)
         self.camera = self.cameras[self.curr_idx]

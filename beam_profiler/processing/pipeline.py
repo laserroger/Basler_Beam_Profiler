@@ -40,24 +40,29 @@ class FrameResult:
     rect_stats: dict | None
     profiler_message: str
     timestamp: float
+    raw_frame: np.ndarray | None = None
+    full_scale: float = 65535
 
 
-def profile_region(frame, roi, fit_rect):
+def profile_region(frame, roi, fit_rect, *, full_scale=None, raw_frame=None):
     x0 = y0 = 0
     if fit_rect is not None:
         cropped = crop_rect(frame, roi, fit_rect)
         if cropped is None:
             return BeamFit(SpotArray.empty(), 'Fitting region is outside the camera ROI')
         frame, (x0, y0, _, _) = cropped
-    result = fit_single_beam(frame)
+        if raw_frame is not None:
+            raw_frame = crop_rect(raw_frame, roi, fit_rect)[0]
+    result = fit_single_beam(frame, full_scale=full_scale, saturation_frame=raw_frame)
     result.spots.x += x0
     result.spots.y += y0
     return result
 
 
 class FrameProcessor:
-    def __init__(self):
+    def __init__(self, calibration=None):
         self.statistics = SpotStatistics()
+        self.calibration = calibration
 
     def process(self, frame, *, roi, pixel_size, full_scale, options=None, config=None):
         options = options or AnalysisOptions()
@@ -65,10 +70,13 @@ class FrameProcessor:
         roi = tuple(roi)
         if frame.shape != (roi[1], roi[0]):
             raise ValueError('Frame dimensions do not match the camera ROI')
+        raw_frame = frame
+        if self.calibration is not None:
+            frame = self.calibration.apply(raw_frame, roi)
         timestamp = time.time()
         message = ''
         if options.profiler:
-            fitted = profile_region(frame, roi, options.fit_rect)
+            fitted = profile_region(frame, roi, options.fit_rect, full_scale=full_scale, raw_frame=raw_frame)
             spots, message = fitted.spots, fitted.message
         elif options.fitting:
             spots = detect_spots(frame, cfg=config)
@@ -80,7 +88,7 @@ class FrameProcessor:
             spots = SpotArray.empty()
         # update assigns new arrays; copy the state so earlier results never
         # acquire the next frame's smoothing values or geometry.
-        saturated = saturated_spots(frame, spots, full_scale)
+        saturated = saturated_spots(raw_frame, spots, full_scale)
         statistics = copy(self.statistics)
         statistics.update(spots, saturated=saturated)
         self.statistics = statistics
@@ -88,5 +96,5 @@ class FrameProcessor:
             frame, roi, pixel_size, options, spots, statistics,
             saturated,
             region_stats(frame, roi, options.rect, pixel_size) if options.rect_stats else None,
-            message, timestamp,
+            message, timestamp, raw_frame, full_scale,
         )

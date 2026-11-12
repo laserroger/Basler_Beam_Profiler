@@ -34,7 +34,7 @@ class _Session:
             self.system = None
 
 
-def open_flir_cameras(mode="16Bit"):
+def open_flir_cameras(mode="16Bit", adc_bits=None):
     if sys.platform == "darwin":
         # A frozen app can load the separately installed vendor Python binding.
         # Its Python ABI and architecture must match this app (cp312/arm64).
@@ -67,7 +67,7 @@ def open_flir_cameras(mode="16Bit"):
         devices = session.system.GetCameras()
         for index in range(devices.GetSize()):
             raw = devices.GetByIndex(index)
-            cameras.append(FlirCamera(raw, sdk, mode, session))
+            cameras.append(FlirCamera(raw, sdk, mode, session, adc_bits=adc_bits))
             raw = None
     except Exception as exc:
         # Keep the message, not the traceback: constructor frames can retain
@@ -88,7 +88,7 @@ def open_flir_cameras(mode="16Bit"):
 
 
 class FlirCamera(Camera):
-    def __init__(self, camera, sdk, mode="16Bit", session=None):
+    def __init__(self, camera, sdk, mode="16Bit", session=None, adc_bits=None):
         super().__init__(mode)
         self.camera, self.sdk, self._session = camera, sdk, session
         self._running = False
@@ -135,9 +135,15 @@ class FlirCamera(Camera):
             self._optional(lambda: self._enum("ExposureMode", "Timed"), "timed exposure")
             self._optional(lambda: self._enum("GainAuto", "Off"), "manual gain")
             self._optional(lambda: self._boolean("GammaEnable", False), "linear gamma")
-            # This Blackfly exposes native Mono16 (12-bit ADC, MSB aligned).
+            if adc_bits is not None:
+                self._enum("AdcBitDepth", f"Bit{adc_bits}")
+            # Mono16 is a container format; ADC precision is selected separately.
             # Avoid converting packed/color data with ambiguous intensity scaling.
             self._enum("PixelFormat", "Mono16" if mode == "16Bit" else "Mono8")
+            try:
+                self.adc_bit_depth = self._node('AdcBitDepth', 'Enumeration').ToString()
+            except Exception:
+                self.adc_bit_depth = None
             exposure = self._node("ExposureTime", "Float")
             self.min_exposure = float(exposure.GetMin())
             self.max_exposure = float(exposure.GetMax())

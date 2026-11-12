@@ -1,11 +1,10 @@
 # Windows FLIR build inputs
 
-The pinned vendor downloads in `manifest.json` are Spinnaker 4.4.0.246 Windows
-x64 and its CPython 3.12 wheel, downloaded from Teledyne. Large binaries are
-stored as release assets in the fork; SHA-256 checksums are verified before use.
+The pinned vendor download in `manifest.json` is the Spinnaker 4.4.0.246
+CPython 3.12 Windows x64 wheel, originally downloaded from Teledyne. The binary
+is stored as a release asset in the fork; its SHA-256 is verified before use.
 The accompanying notices are copied from the same vendor Python ZIP.
 
-The wheel includes the matching native FLIR DLLs and GenTL transport. These are
-collected into the app. The full signed vendor installer is embedded inside our
-offline setup and installs the required runtime prerequisites and USB drivers.
-The app does not need a separate Python or SDK download on the destination PC.
+The wheel includes matching native FLIR DLLs and the GenTL transport, collected
+into the app. The build does not download or bundle the full Spinnaker SDK
+installer. The application uses the destination PC's existing camera drivers.
