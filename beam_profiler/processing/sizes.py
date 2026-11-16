@@ -41,10 +41,11 @@ def _record_bytes(sample):
 
 
 class SizeMonitor:
-    """Independent, bounded histories for explicitly selected sensor anchors.
+    """Independent, bounded histories for selected spots that move between frames.
 
-    Clicks toggle individual spots. Association gates shrink for close beams;
-    missing, ambiguous and saturated detections leave gaps in that trace alone.
+    Clicks toggle individual spots. Confirmed matches update each tracking center.
+    Association gates shrink for close beams. Missing, ambiguous and saturated
+    detections leave gaps and retain the last confirmed position.
     """
     def __init__(self):
         self.samples = {}
@@ -92,6 +93,15 @@ class SizeMonitor:
             raise ValueError('Time window must be between 1 and 600 seconds')
         self.window_seconds = seconds
 
+    def _gate_at(self, data, index):
+        """Use current neighbour spacing to keep nearby beams distinct."""
+        distances = np.hypot(
+            np.asarray(data['x_sensor_px'], dtype=float)-data['x_sensor_px'][index],
+            np.asarray(data['y_sensor_px'], dtype=float)-data['y_sensor_px'][index])
+        distances[index] = np.inf
+        finite = distances[np.isfinite(distances)]
+        return min(self.gate_px, float(finite.min())/2.1) if len(finite) else self.gate_px
+
     def select(self, position):
         if position is None:
             self.time_origin = None
@@ -122,10 +132,7 @@ class SizeMonitor:
             if np.hypot(target['x_sensor_px']-anchor[0],target['y_sensor_px']-anchor[1]) <= target['gate_px']:
                 self._remove_target(key)
                 return True
-        neighbours = np.hypot(np.asarray(data['x_sensor_px'], dtype=float)-anchor[0],
-                              np.asarray(data['y_sensor_px'], dtype=float)-anchor[1])
-        neighbours[i] = np.inf
-        gate = min(self.gate_px, float(np.nanmin(neighbours))/2.1)
+        gate = self._gate_at(data, i)
         key = self._next_id
         self._next_id += 1
         self.targets[key] = dict(id=key,x_sensor_px=anchor[0],y_sensor_px=anchor[1],
@@ -159,6 +166,12 @@ class SizeMonitor:
             i = int(candidates[0]) if len(candidates) == 1 else None
             ambiguous = len(candidates) > 1 or (i is not None and claims[i] > 1)
             valid = i is not None and not ambiguous and data['valid'][i]
+            if valid:
+                # Advance only after an unambiguous, unsaturated measurement.
+                # Future frames search around this position, not the initial click.
+                target['x_sensor_px'] = data['x_sensor_px'][i]
+                target['y_sensor_px'] = data['y_sensor_px'][i]
+                target['gate_px'] = self._gate_at(data, i)
             major = data['major_um'][i] if valid else None
             minor = data['minor_um'][i] if valid else None
             reason = ('valid' if valid else 'ambiguous detections' if ambiguous
